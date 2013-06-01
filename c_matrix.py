@@ -9,7 +9,7 @@ import numpy as np
 from numpy import sin, cos, pi, sqrt
 import re
 
-#Used for normal incidence TE wave on linear dialectric
+#Expand SI units
 def unitize_f(freq):
     try:
         freq=str( '{0:f}'.format(freq) )
@@ -30,17 +30,19 @@ def unitize_f(freq):
         freqbase*=1000000000
     return freqbase
     
+#Used for normal incidence TE wave on linear dialectric
 class c_matrix:
     def __init__(self, freq, thickness, eps=1):
-        self.wavelength=299792000.0/unitize_f(freq)
+        self.wavelength=300000000.0/unitize_f(freq)
         self.permitivity=eps
-        self.thickness=thickness/sqrt(eps)
+        self.thickness=thickness
     def M(self, z=0):
         if z==0:
             z=self.thickness
         return np.array([[cos(2*pi/self.wavelength*sqrt(self.permitivity)*z),-1j/sqrt(self.permitivity)*sin(2*pi/self.wavelength*sqrt(self.permitivity)*z)],
                           [-1j*sqrt(self.permitivity)*sin(2*pi/self.wavelength*sqrt(self.permitivity)*z), cos(2*pi/self.wavelength*sqrt(self.permitivity)*z)]])
 
+#Construct interface of multiple dialectric slabs
 class interface:
     def __init__(self, *arg):
         self.matrix=np.array([[1,0],[0,1]])
@@ -49,6 +51,7 @@ class interface:
     def layer(self, new_m):
         self.matrix=np.dot(self.matrix, new_m)
         
+#Calculate transmission ratio for medium/media.
 def trans(c_mat, eps_1, eps_l):
     p_1=sqrt(eps_1)
     p_l=sqrt(eps_l)

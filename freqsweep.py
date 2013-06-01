@@ -9,17 +9,23 @@ Created with Spyder IDE
 import c_matrix as cm
 from c_matrix import unitize_f, trans
 import matplotlib.pyplot as plt
+from numpy import sqrt
 
-thick=.0005 #thickness of outer layers, in m
+central_freq="150GHz"
 
+
+thick=300000000/(4*unitize_f(central_freq))
+
+#Compute transmission of 2/4/7 AR coating at given frequency
 def trans_y(freq):
-    layer_1=cm.c_matrix(freq, thick, 2)
-    layer_2=cm.c_matrix(freq, thick, 4)
-    layer_3=cm.c_matrix(freq, thick, 7)
+    layer_1=cm.c_matrix(freq, thick/sqrt(2), 2)
+    layer_2=cm.c_matrix(freq, thick/sqrt(4), 4)
+    layer_3=cm.c_matrix(freq, thick/sqrt(7), 7)
     layer_4=cm.c_matrix(freq, .006, 9.6)
     ar = cm.interface(layer_1, layer_2, layer_3, layer_4, layer_3, layer_2, layer_1)
     return trans(ar, 2, 2)
     
+#Show frequency spectrum of medium defined in trans_y
 def graph(start, stop, step):
     start = unitize_f(start)
     stop = unitize_f(stop)
