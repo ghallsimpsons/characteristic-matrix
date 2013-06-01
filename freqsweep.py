@@ -9,8 +9,6 @@ Created with Spyder IDE
 import c_matrix as cm
 from c_matrix import unitize_f, trans
 import matplotlib.pyplot as plt
-from math import floor
-#import numpy as np
 
 thick=.0005 #thickness of outer layers, in m
 
