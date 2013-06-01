@@ -9,6 +9,7 @@ Created with Spyder IDE
 import c_matrix as cm
 from c_matrix import unitize_f, trans
 import matplotlib.pyplot as plt
+from math import floor
 #import numpy as np
 
 thick=.0005 #thickness of outer layers, in m
@@ -27,11 +28,21 @@ def graph(start, stop, step):
     step = unitize_f(step)
     x_vals=[]
     y_vals=[]
+    divisor=1
+    frq_range="Hz"
+    if (stop+start)/2>1000000000:
+        divisor=1000000000
+        frq_range="GHz"
+    elif (stop+start)/2>1000000:
+        divisor=1000000
+        frq_range="MHz"
+    elif (stop+start)/2>1000:
+        divisor=1000
+        frq_range="kHz"
     for x in xrange(int((stop-start)/step)):
-        x_vals.append(x*step+start)
+        x_vals.append((x*step+start)/divisor)
         y_vals.append(trans_y(x*step+start))
-    print y_vals
     plt.plot(x_vals, y_vals)
-    plt.xlabel("Frequency (Hz)")
+    plt.xlabel("Frequency ("+frq_range+")")
     plt.ylabel("Transmission Ratio")
     plt.show()

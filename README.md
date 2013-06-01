@@ -27,8 +27,6 @@ Frequencies less than one must include a leading 0 due to inproper parsing.
 
 TODO:
 
-Fix the units on axis (currently it only graphs in Hz)
-
 Make more modular so it can do more different number of layers with a single command.
 
 Subroutines to focus permittivity and thickness parameters to return the desired central frequency, maximize the the spread of the +- peak nodes, and/or minimize rms within a given range.
