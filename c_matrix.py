@@ -34,7 +34,7 @@ class c_matrix:
     def __init__(self, freq, thickness, eps=1):
         self.wavelength=299792000.0/unitize_f(freq)
         self.permitivity=eps
-        self.thickness=thickness
+        self.thickness=thickness/sqrt(eps)
     def M(self, z=0):
         if z==0:
             z=self.thickness

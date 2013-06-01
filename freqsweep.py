@@ -11,13 +11,14 @@ from c_matrix import unitize_f, trans
 import matplotlib.pyplot as plt
 #import numpy as np
 
-thick=.00044 #thickness of outer layers, in m
+thick=.0005 #thickness of outer layers, in m
 
 def trans_y(freq):
     layer_1=cm.c_matrix(freq, thick, 2)
     layer_2=cm.c_matrix(freq, thick, 4)
-    layer_3=cm.c_matrix(freq, .006, 7)
-    ar = cm.interface(layer_1, layer_2, layer_3, layer_2, layer_1)
+    layer_3=cm.c_matrix(freq, thick, 7)
+    layer_4=cm.c_matrix(freq, .006, 9.6)
+    ar = cm.interface(layer_1, layer_2, layer_3, layer_4, layer_3, layer_2, layer_1)
     return trans(ar, 2, 2)
     
 def graph(start, stop, step):
