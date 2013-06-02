@@ -17,16 +17,12 @@ There are several missing features which are not difficult to implement, they ju
 The current example:
 
 freqsweep.graph creates a graph of the transmission (neglecting absorption) versus a range of frequencies. 
-
+freqsweep.run_trial optimizes dialectric thickness by displaying bandwidth and relative reflectivity (a dimensionless constant).
 
 Known bugs:
 
 Frequencies less than one must include a leading 0 due to inproper parsing.
-
-
+Maximin fringe location uses the first and last fringes. That sometimes leads to anomalous results during optimization when an unexpected peak appears.
 
 TODO:
-
-Make more modular so it can do more different number of layers with a single command.
-
-Subroutines to focus permittivity and thickness parameters to return the desired central frequency, maximize the the spread of the +- peak nodes, and/or minimize rms within a given range.
+Unitize_d to allow unit parsing of length.
