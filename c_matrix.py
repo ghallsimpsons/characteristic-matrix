@@ -52,7 +52,7 @@ class interface:
         self.matrix=np.dot(self.matrix, new_m)
         
 #Calculate transmission ratio for medium/media.
-def trans(c_mat, eps_1, eps_l):
+def trans(c_mat, eps_1=1, eps_l=1):
     p_1=sqrt(eps_1)
     p_l=sqrt(eps_l)
     return abs(2*p_1/((c_mat.matrix.item(0,0)+c_mat.matrix.item(0,1)*p_l)*p_1+(c_mat.matrix.item(1,0)+c_mat.matrix.item(1,1)*p_l)))
