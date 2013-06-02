@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created May 2013
+Created May 31, 2013
 
 @author: Grantland Hall
+grantlandhall@berkeley.edu
 """
 
 import numpy as np

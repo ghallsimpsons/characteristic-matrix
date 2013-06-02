@@ -26,3 +26,7 @@ Maximin fringe location uses the first and last fringes. That sometimes leads to
 
 TODO:
 Unitize_d to allow unit parsing of length.
+
+Acknowledgements
+====================
+Created for POLARBEAR II project at UC Berkeley under the advisement of Aritoki Suzuki
