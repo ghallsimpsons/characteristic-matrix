@@ -16,7 +16,7 @@ from numpy import sqrt
 central_freq="150GHz"
 
 
-base_thick=300000000/(4*unitize_f(central_freq))
+base_thick=300000000/(4*unitize_f("150ghz"))#central_freq))
 
 #default for optimal results
 def interface_default(freq, layer=0, thick=base_thick):
@@ -28,11 +28,12 @@ def interface_default(freq, layer=0, thick=base_thick):
 
 #default for current materials
 def interface_current(freq, layer=0, thick=base_thick):
-    layer_perms=[2, 3.6, 6.6, 9.6]
-    layer_1=cm.c_matrix(freq, .000353, layer_perms[0])
-    layer_2=cm.c_matrix(freq, .000263, layer_perms[1])
-    layer_3=cm.c_matrix(freq, .000195, layer_perms[2])
-    layer_4=cm.c_matrix(freq, .045, layer_perms[3])
+    layer_perms=[2, 4, 7, 9.6]
+    air=cm.c_matrix(freq, 1000, 1)
+    layer_1=cm.c_matrix(freq, thick/sqrt(layer_perms[0]), layer_perms[0])
+    layer_2=cm.c_matrix(freq, thick/sqrt(layer_perms[1]), layer_perms[1])
+    layer_3=cm.c_matrix(freq, thick/sqrt(layer_perms[2]), layer_perms[2])
+    layer_4=cm.c_matrix(freq, .006, layer_perms[3])
     if layer>0:
         exec("layer_"+str(layer)+"=cm.c_matrix(freq, thick, layer_perms[layer-1] )")
     return cm.interface(layer_1, layer_2, layer_3, layer_4, layer_3, layer_2, layer_1)
@@ -57,10 +58,11 @@ def graph(layer=0, layer_thick=base_thick, start="1ghz", stop="300ghz", step="0.
     for x in xrange(int((stop-start)/step)):
         x_vals.append((x*step+start)/divisor)
     y_vals=get_data(layer, layer_thick, start, stop, step)
-    plt.plot(x_vals, sma(y_vals,100))
-    plt.xlabel("Frequency ("+frq_range+")")
-    plt.ylabel("Transmission Ratio")
-    plt.show()
+    print y_vals
+    #plt.plot(x_vals, y_vals)
+    #plt.xlabel("Frequency ("+frq_range+")")
+    #plt.ylabel("Transmission Ratio")
+    #plt.show()
 
 def get_data(layer, layer_thick, start, stop, step):
     start = unitize_f(start)
