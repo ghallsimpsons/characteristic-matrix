@@ -16,7 +16,7 @@ def unitize_f(freq):
         freq=str( '{0:f}'.format(freq) )
     except:#Can't format if already string, but cast to string just in case
         freq=str(freq)
-    freqbase=float(re.findall(r"[0-9]+\.?[0-9]*", freq)[0])
+    freqbase=float(re.findall(r"[0-9]*\.?[0-9]*", freq)[0])
     maxlen=0
     unit=""
     for u in re.findall(r"[a-zA-Z]*", freq):
@@ -41,34 +41,25 @@ class c_matrix:
         if z==0:
             z=self.thickness
         r=(sqrt(self.permitivity)-sqrt(perm_next))/(sqrt(perm_next)+sqrt(self.permitivity))
-#        print "M: "+str([[exp(2j*pi/self.wavelength*sqrt(self.permitivity)*z),r*exp(2j*pi/self.wavelength*sqrt(self.permitivity)*z)],
-#                          [r*exp(2j*pi/self.wavelength*sqrt(self.permitivity)*z), exp(2j*pi/self.wavelength*sqrt(self.permitivity)*z)]])
-        return np.matrix([[exp(2j*pi/self.wavelength*sqrt(self.permitivity)*z),r*exp(2j*pi/self.wavelength*sqrt(self.permitivity)*z)],
-                          [r*exp(2j*pi/self.wavelength*sqrt(self.permitivity)*z), exp(2j*pi/self.wavelength*sqrt(self.permitivity)*z)]])
+        return np.matrix([[exp(2j*pi/self.wavelength*sqrt(self.permitivity)*z),0],
+                          [0, exp(-2j*pi/self.wavelength*sqrt(self.permitivity)*z)]])*np.matrix([[1,r],[r,1]])
 
 #Construct interface of multiple dialectric slabs
 class interface:
     def __init__(self, *arg):
         perm_list=[]
         perm_last=1
-        self.t=1
         for x in arg:
             perm_list.append(x.permitivity)
+        self.t=1+(1-sqrt(perm_list[0]))/(1+sqrt(perm_list[0]))
+        perm_list.append(perm_last)
         self.matrix=np.matrix([[1,(1-sqrt(perm_list[0]))/(1+sqrt(perm_list[0]))],[(1-sqrt(perm_list[0]))/(1+sqrt(perm_list[0])),1]])
-        print self.matrix
         i=0
         for x in arg:
-            try:
-                self.matrix=self.matrix*x.M(perm_list[i+1])
-                self.t*=sqrt(perm_list[i])*2/(sqrt(perm_list[i])+sqrt(perm_list[i+1]))
-                print self.matrix
-            except:
-                self.matrix=self.matrix*x.M(perm_last)
-                self.t*=sqrt(perm_list[i])*2/(sqrt(perm_list[i])+sqrt(perm_last))
-                print "YIPEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE!"
+            self.matrix=self.matrix*x.M(perm_list[i+1])
+            self.t*=1+(sqrt(perm_list[i])-sqrt(perm_list[i+1]))/(sqrt(perm_list[i])+sqrt(perm_list[i+1]))
             i+=1
-        print self.matrix.item(0,0)
         
 #Calculate transmission ratio for medium/media.
 def trans(c_mat):
-    return c_mat.t/abs(c_mat.matrix.item(0,0))**2
+    return 1/abs(c_mat.matrix.item(0,0)/c_mat.t)**2

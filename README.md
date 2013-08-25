@@ -19,13 +19,6 @@ The current example:
 freqsweep.graph creates a graph of the transmission (neglecting absorption) versus a range of frequencies. 
 freqsweep.run_trial optimizes dialectric thickness by displaying bandwidth and relative reflectivity (a dimensionless constant).
 
-Known bugs:
-
-Frequencies less than one must include a leading 0 due to inproper parsing.
-Maximin fringe location uses the first and last fringes. That sometimes leads to anomalous results during optimization when an unexpected peak appears.
-
-TODO:
-Unitize_d to allow unit parsing of length.
 
 Acknowledgements
 ====================
