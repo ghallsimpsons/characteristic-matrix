@@ -8,7 +8,6 @@ Created with Spyder IDE
 
 import numpy as np
 #from scipy.signal import argrelextrema
-import c_matrix as cm
 from c_matrix import unitize_f, trans
 import matplotlib.pyplot as plt
 from numpy import sqrt
@@ -17,28 +16,9 @@ central_freq="150GHz"
 
 
 base_thick=300000000/(4*unitize_f("150ghz"))#central_freq))
-
-#default for optimal results
-def interface_default(freq, layer=0, thick=base_thick):
-    layer_1=cm.c_matrix(freq, thick/sqrt(2), 2)
-    layer_2=cm.c_matrix(freq, thick/sqrt(4), 4)
-    layer_3=cm.c_matrix(freq, thick/sqrt(7), 7)
-    layer_4=cm.c_matrix(freq, .045, 9.6)
-    return cm.interface(layer_1, layer_2, layer_3, layer_4, layer_3, layer_2, layer_1)
-
-#default for current materials
-def interface_current(freq, layer=0, thick=base_thick):
-    layer_perms=[2, 4, 7, 9.6]
-    layer_1=cm.c_matrix(freq, thick/sqrt(layer_perms[0]), layer_perms[0])
-    layer_2=cm.c_matrix(freq, thick/sqrt(layer_perms[1]), layer_perms[1])
-    layer_3=cm.c_matrix(freq, thick/sqrt(layer_perms[2]), layer_perms[2])
-    layer_4=cm.c_matrix(freq, .006, layer_perms[3])
-    if layer>0:
-        exec("layer_"+str(layer)+"=cm.c_matrix(freq, thick, layer_perms[layer-1] )")
-    return cm.interface(layer_1, layer_2, layer_3, layer_4, layer_3, layer_2, layer_1)
     
 #Show frequency spectrum of medium defined in trans_y
-def graph(layer=0, layer_thick=base_thick, start="1ghz", stop="300ghz", step="0.1ghz"):
+def graph(interface, start="1ghz", stop="300ghz", step="0.1ghz"):
     start = unitize_f(start)
     stop = unitize_f(stop)
     step = unitize_f(step)
@@ -56,19 +36,19 @@ def graph(layer=0, layer_thick=base_thick, start="1ghz", stop="300ghz", step="0.
         frq_range="kHz"
     for x in xrange(int((stop-start)/step)):
         x_vals.append((x*step+start)/divisor)
-    y_vals=get_data(layer, layer_thick, start, stop, step)
+    y_vals=get_data(interface, start, stop, step)
     plt.plot(x_vals, y_vals)
     plt.xlabel("Frequency ("+frq_range+")")
     plt.ylabel("Transmission Ratio")
     plt.show()
 
-def get_data(layer, layer_thick, start, stop, step):
+def get_data(interface, start, stop, step):
     start = unitize_f(start)
     stop = unitize_f(stop)
     step = unitize_f(step)
     y_vals=[]
     for x in xrange(int((stop-start)/step)):
-        y_vals.append(trans(interface_current(x*step+start, layer, layer_thick)))
+        y_vals.append(trans(interface.construct(x*step+start)))
     return y_vals
 """    
 def statistics_of(layer, layer_thick, start="1ghz", stop="300ghz", step="0.1ghz"):
