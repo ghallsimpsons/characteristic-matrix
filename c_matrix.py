@@ -31,6 +31,17 @@ def unitize_f(freq):
         freqbase*=1000000000
     return freqbase
     
+class layer:
+    def __init__(self, eps=1, thickness=-1):
+        self.thickness = thickness
+        self.eps = eps
+    def get_matrix(self, freq):
+        if self.thickness == -1:
+            thickness = 300000000.0/(4*sqrt(self.eps)*unitize_f(freq)) # Use quarter wavelength as default
+        else:
+            thickness = self.thickness
+        return c_matrix(freq=freq, thickness=thickness, eps=self.eps)
+
 #Used for normal incidence TE wave on linear dialectric
 class c_matrix:
     def __init__(self, freq, thickness, eps=1):
@@ -45,20 +56,29 @@ class c_matrix:
                           [0, exp(-2j*pi/self.wavelength*sqrt(self.permitivity)*z)]])*np.matrix([[1,r],[r,1]])
 
 #Construct interface of multiple dialectric slabs
-class interface:
-    def __init__(self, *arg):
+class interface_matrix:
+    '''Takes a tuple as an argument and returns an object with .t and .matrix attributes'''
+    def __init__(self, layers):
         perm_list=[]
         perm_last=1
-        for x in arg:
+        for x in layers:
             perm_list.append(x.permitivity)
         self.t=1+(1-sqrt(perm_list[0]))/(1+sqrt(perm_list[0]))
         perm_list.append(perm_last)
         self.matrix=np.matrix([[1,(1-sqrt(perm_list[0]))/(1+sqrt(perm_list[0]))],[(1-sqrt(perm_list[0]))/(1+sqrt(perm_list[0])),1]])
         i=0
-        for x in arg:
+        for x in layers:
             self.matrix=self.matrix*x.M(perm_list[i+1])
             self.t*=1+(sqrt(perm_list[i])-sqrt(perm_list[i+1]))/(sqrt(perm_list[i])+sqrt(perm_list[i+1]))
             i+=1
+
+class interface:
+    def __init__(self, *arg):
+        self.layers = arg
+    def construct(self, freq):
+        matrices = [x.get_matrix(freq) for x in self.layers]
+        return interface_matrix(matrices)
+        
         
 #Calculate transmission ratio for medium/media.
 def trans(c_mat):
