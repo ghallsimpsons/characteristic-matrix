@@ -19,6 +19,14 @@ The current example:
 freqsweep.graph creates a graph of the transmission (neglecting absorption) versus a range of frequencies. 
 freqsweep.run_trial optimizes dialectric thickness by displaying bandwidth and relative reflectivity (a dimensionless constant).
 
+EXAMPLE
+====================
+layer1=layer(2, .00035)
+layer2=layer(4, .00025)
+layer3=layer(7, .00018)
+layer4=layer(9.6, .006)
+iface=interface(layer1,layer2,layer3,layer4,layer3,layer2,layer1)
+graph(iface)
 
 Acknowledgements
 ====================
