@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 @author: Grantland
-May 31, 2013
+grantlandhall@berkeley.edu
 
-Created with Spyder IDE
+Last Modified: Nov 2, 2013
 """
 
 import numpy as np
@@ -17,8 +17,8 @@ central_freq="150GHz"
 
 base_thick=300000000/(4*unitize_f("150ghz"))#central_freq))
     
-#Show frequency spectrum of medium defined in trans_y
 def graph(interface, start="1ghz", stop="300ghz", step="0.1ghz"):
+    """Show frequency spectrum of interface."""
     start = unitize_f(start)
     stop = unitize_f(stop)
     step = unitize_f(step)
@@ -50,6 +50,8 @@ def get_data(interface, start, stop, step):
     for x in xrange(int((stop-start)/step)):
         y_vals.append(trans(interface.construct(x*step+start)))
     return y_vals
+    
+#If I recall, this isn't working and I don't have time to figure out why.
 """    
 def statistics_of(layer, layer_thick, start="1ghz", stop="300ghz", step="0.1ghz"):
     y_vals=get_data(layer, layer_thick, start, stop, step)
@@ -79,6 +81,8 @@ def run_trial(layer, layer_start, layer_stop, layer_step, start="1ghz", stop="30
         print "Thickness: "+str(x*layer_step+layer_start)+"m"
         statistics_of(layer, x*layer_step+layer_start, start, stop, step)
     """
+    
 def sma(interval, window_size):
+    """Smoothes a data set of 'window_size' length by averaging over 'interval' data points."""
     window= np.ones(int(window_size))/float(window_size)
     return np.convolve(interval, window, 'same')

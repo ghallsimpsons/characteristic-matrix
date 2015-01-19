@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-Created May 31, 2013
-
 @author: Grantland Hall
 grantlandhall@berkeley.edu
+
+Last Modified: Nov 2, 2013
 """
 
 import numpy as np
 from numpy import pi, sqrt, exp
 import re
 
-#Expand SI units
 def unitize_f(freq):
     try:
         freq=str( '{0:f}'.format(freq) )
@@ -31,7 +30,8 @@ def unitize_f(freq):
         freqbase*=1000000000
     return freqbase
     
-class layer:
+class Layer:
+    """A single dialectric layer. These are compounded using the Interface class."""
     def __init__(self, eps=1, thickness=-1):
         self.thickness = thickness
         self.eps = eps
@@ -42,8 +42,9 @@ class layer:
             thickness = self.thickness
         return c_matrix(freq=freq, thickness=thickness, eps=self.eps)
 
-#Used for normal incidence TE wave on linear dialectric
+
 class c_matrix:
+    """Used for normal incidence TE wave on linear dialectric."""
     def __init__(self, freq, thickness, eps=1):
         self.wavelength=300000000.0/unitize_f(freq)
         self.permitivity=eps
@@ -56,7 +57,7 @@ class c_matrix:
                           [0, exp(-2j*pi/self.wavelength*sqrt(self.permitivity)*z)]])*np.matrix([[1,r],[r,1]])
 
 #Construct interface of multiple dialectric slabs
-class interface_matrix:
+class _InterfaceMatrix:
     '''Takes a tuple as an argument and returns an object with .t and .matrix attributes'''
     def __init__(self, layers):
         perm_list=[]
@@ -72,14 +73,14 @@ class interface_matrix:
             self.t*=1+(sqrt(perm_list[i])-sqrt(perm_list[i+1]))/(sqrt(perm_list[i])+sqrt(perm_list[i+1]))
             i+=1
 
-class interface:
+class Interface:
+    """Wrapper around interface_matrix."""
     def __init__(self, *arg):
         self.layers = arg
     def construct(self, freq):
         matrices = [x.get_matrix(freq) for x in self.layers]
-        return interface_matrix(matrices)
+        return _InterfaceMatrix(matrices)
         
-        
-#Calculate transmission ratio for medium/media.
 def trans(c_mat):
+    """Calculate transmission ratio for medium/media."""
     return 1/abs(c_mat.matrix.item(0,0)/c_mat.t)**2
