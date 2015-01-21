@@ -60,7 +60,7 @@ Current Examples:
 """
 
 from numpy import cos, sin, pi, arctan2
-import numpy as n
+import numpy as np
 
 AHWP_e = 9 # extroardinary index
 AHWP_o = 8 # ordinary index
@@ -162,7 +162,7 @@ class PolarizationTwoVector:
         """Return rotated representation of self"""
         x_to_rot_x = vector_x.amp*cos(rad)
         x_to_rot_y = -1*vecrot_x.amp*sin(rad)
-        y_to_rot_x = vector_y.amp*cos(sin)
+        y_to_rot_x = vector_y.amp*cos(rad)
         y_to_rot_y = vector_y.amp*cos(rad)
         new_x = PolarizationVector(x_to_rot_x, vector_x.phase) + \
             PolarizationVector(y_to_rot_x, vector_y.phase)
