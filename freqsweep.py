@@ -8,7 +8,7 @@ Last Modified: Nov 2, 2013
 
 import numpy as np
 #from scipy.signal import argrelextrema
-from c_matrix import unitize_f, trans
+from c_matrix import unitize_f
 import matplotlib.pyplot as plt
 from numpy import sqrt
 
@@ -48,7 +48,7 @@ def get_data(interface, start, stop, step):
     step = unitize_f(step)
     y_vals=[]
     for x in xrange(int((stop-start)/step)):
-        y_vals.append(trans(interface.construct(x*step+start)))
+        y_vals.append(interface.trans(x*step+start))
     return y_vals
     
 #If I recall, this isn't working and I don't have time to figure out why.

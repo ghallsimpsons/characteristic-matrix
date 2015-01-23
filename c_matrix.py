@@ -7,7 +7,7 @@ Last Modified: Nov 2, 2013
 """
 
 import numpy as np
-from numpy import pi, sqrt, exp
+from numpy import pi, sqrt, exp, sin, cos
 import re
 from operator import mul
 
@@ -39,7 +39,7 @@ class Layer:
     """
     def __init__(self, eps=1, thickness=-1, eps2=-1, angle=0):
         if eps2 == -1:
-            eps2 = eps1
+            eps2 = eps
         self.eps2 = eps2
         self.angle = angle
         self.thickness = thickness
@@ -47,22 +47,27 @@ class Layer:
     def get_matrix(self):
         thickness = self.thickness
         return c_matrix(thickness=thickness, eps=self.eps, eps2=self.eps2, angle=self.angle)
-
+    def phase(self, freq):
+        # The phase matrices are diagonal, so they can be performed last.
+        wavelength=300000000.0/unitize_f(freq)
+        z=self.thickness
+        return np.matrix([[exp(2j*pi/wavelength*sqrt(self.eps)*z),0,0,0],
+                   [0, exp(-2j*pi/wavelength*sqrt(self.eps)*z),0,0],
+                   [0,0, exp(2j*pi/wavelength*sqrt(self.eps2)*z),0],
+                   [0,0,0, exp(-2j*pi/wavelength*sqrt(self.eps2)*z)]])
 
 class c_matrix:
     """Used for normal incidence TE wave on linear dialectric."""
-    def __init__(self, thickness, eps=1, angle=0):
+    def __init__(self, thickness, eps=1, eps2=1, angle=0):
         self.permitivity=eps
         self.permitivity2=eps2
         self.thickness=thickness
         self.angle=angle
-    def M(self, layer_next, z=0):
-        if z==0:
-            z=self.thickness
+    def M(self, layer_next):
         perm_next = layer_next.permitivity
-        perm2_next = layer_next.permittivity2
-        angle_next = layer_next.angle
+        perm2_next = layer_next.permitivity2
         r_xx = (sqrt(self.permitivity)-sqrt(perm_next))/(sqrt(perm_next)+sqrt(self.permitivity))
+        r_yy = (sqrt(self.permitivity2)-sqrt(perm2_next))/(sqrt(perm2_next)+sqrt(self.permitivity2))
         r_xy = (sqrt(self.permitivity)-sqrt(perm2_next))/(sqrt(perm2_next)+sqrt(self.permitivity))
         r_yx = (sqrt(self.permitivity2)-sqrt(perm_next))/(sqrt(perm_next)+sqrt(self.permitivity2))
         angle_diff = layer_next.angle - self.angle
@@ -71,13 +76,6 @@ class c_matrix:
                         [sin(angle_diff), r_yx*sin(angle_diff),cos(angle_diff),r_yy*cos(angle_diff)],
                         [r_yx*sin(angle_diff), sin(angle_diff),r_yy*cos(angle_diff),cos(angle_diff)],
                         ])
-    def Phase(freq):
-        # The phase matrices are diagonal, so they can be performed last.
-        wavelength=300000000.0/unitize_f(freq)
-        return np.matrix([[exp(2j*pi/wavelength*sqrt(self.permitivity)*z),0,0,0],
-                   [0, exp(-2j*pi/wavelength*sqrt(self.permitivity)*z),0,0],
-                   [0,0 exp(2j*pi/wavelength*sqrt(self.permitivity2)*z),0],
-                   [0,0,0 exp(-2j*pi/wavelength*sqrt(self.permitivity2)*z)]])
 
 #Construct interface of multiple dialectric slabs
 class _InterfaceMatrix:
@@ -92,28 +90,29 @@ class _InterfaceMatrix:
         self.t_x=1+(1-sqrt(perm_list[0]))/(1+sqrt(perm_list[0]))
         self.t_y=1+(1-sqrt(perm_list2[0]))/(1+sqrt(perm_list2[0]))
         perm_list.append(perm_last)
-        perl_list2.append(perm_last)
-        r_xy = (1-sqrt(perm_list[0]))/(sqrt(perl_list[0])+1)
+        perm_list2.append(perm_last)
+        r_xy = (1-sqrt(perm_list[0]))/(sqrt(perm_list[0])+1)
         r_yx = (1-sqrt(perm_list2[0]))/(sqrt(perm_list2[0])+1)
         theta_0 = layers[0].angle
         self.matrix=np.matrix([
             [cos(theta_0), cos(theta_0)*(self.t_x-1), sin(theta_0), sin(theta_0)*r_xy],
-            [cos(theta_0)*(self.t_x-1),   cos(theta_0),   sin(theta_0)*r_xy, sin(theta_0))],
+            [cos(theta_0)*(self.t_x-1),   cos(theta_0),   sin(theta_0)*r_xy, sin(theta_0)],
             [sin(theta_0), sin(theta_0)*r_yx, cos(theta_0), cos(theta_0)*(self.t_y-1)],
-            [sin(theta_0)*r_yx,   sin(theta_0),   cos(theta_0)*(self.t_y-1), cos(theta_0))],
+            [sin(theta_0)*r_yx,   sin(theta_0),   cos(theta_0)*(self.t_y-1), cos(theta_0)],
             ])
         i=0
         for x in layers:
-            self.matrix=self.matrix*x.M(perm_list[i+1])
-            if len(layers)==i:
+            if i+1==len(layers):
                 #last layer
                 theta_1 = 0
+                self.matrix=self.matrix*x.M(c_matrix(0))
             else:
                 theta_1 = layers[i+1].angle
+                self.matrix=self.matrix*x.M(layers[i+1])
             diff =  theta_1 - layers[i].angle
-            self.t_x*=(1+(sqrt(perm_list[i])-sqrt(perm_list[i+1]))/(sqrt(perm_list[i])+sqrt(perm_list[i+1])))*cos(diff)
+            self.t_x*=(1+(sqrt(perm_list[i])-sqrt(perm_list[i+1]))/(sqrt(perm_list[i])+sqrt(perm_list[i+1])))*cos(diff) \
                     + (1+(sqrt(perm_list2[i])-sqrt(perm_list[i+1]))/(sqrt(perm_list2[i])+sqrt(perm_list[i+1])))*sin(diff)
-            self.t_y*=(1+(sqrt(perm_list2[i])-sqrt(perm_list2[i+1]))/(sqrt(perm_list2[i])+sqrt(perm_list2[i+1])))*cos(diff)
+            self.t_y*=(1+(sqrt(perm_list2[i])-sqrt(perm_list2[i+1]))/(sqrt(perm_list2[i])+sqrt(perm_list2[i+1])))*cos(diff) \
                     + (1+(sqrt(perm_list[i])-sqrt(perm_list2[i+1]))/(sqrt(perm_list[i])+sqrt(perm_list2[i+1])))*sin(diff)
             i+=1
 
@@ -121,11 +120,11 @@ class Interface:
     """Wrapper around interface_matrix."""
     def __init__(self, *arg):
         self.layers = arg
-    def construct(self):
         matrices = [x.get_matrix() for x in self.layers]
-        return _InterfaceMatrix(matrices)
-    def trans(freq, theta=0):
+        self.c_mat = _InterfaceMatrix(matrices)
+    def trans(self, freq, theta=0):
         """Calculate transmission ratio for medium/media."""
-        c_mat = self.construct()
-        matrix_result = reduce(mul, [l.Phase(freq) for l in self.layers], c_mat.matrix)  
-        return abs(c_mat.t_x/matrix_result(0,0))**2 + abs(c_mat.t_y/matrix_result(2,2))**2
+        c_mat = self.c_mat
+        matrix_result = reduce(mul, [l.phase(freq) for l in self.layers], c_mat.matrix)
+        print "t_x: {}, t_y: {}, matrix: {}".format(c_mat.t_x, c_mat.t_y, c_mat.matrix)
+        return abs(c_mat.t_x/matrix_result.item(0,0))**2 + abs(c_mat.t_y/matrix_result.item(2,2))**2
