@@ -47,14 +47,6 @@ class Layer:
     def get_matrix(self):
         thickness = self.thickness
         return c_matrix(thickness=thickness, eps=self.eps, eps2=self.eps2, angle=self.angle)
-    def phase(self, freq):
-        # The phase matrices are diagonal, so they can be performed last.
-        wavelength=300000000.0/unitize_f(freq)
-        z=self.thickness
-        return np.matrix([[exp(2j*pi/wavelength*sqrt(self.eps)*z),0,0,0],
-                   [0, exp(-2j*pi/wavelength*sqrt(self.eps)*z),0,0],
-                   [0,0, exp(2j*pi/wavelength*sqrt(self.eps2)*z),0],
-                   [0,0,0, exp(-2j*pi/wavelength*sqrt(self.eps2)*z)]])
 
 class c_matrix:
     """Used for normal incidence TE wave on linear dialectric."""
@@ -76,11 +68,18 @@ class c_matrix:
                         [sin(angle_diff), r_yx*sin(angle_diff),cos(angle_diff),r_yy*cos(angle_diff)],
                         [r_yx*sin(angle_diff), sin(angle_diff),r_yy*cos(angle_diff),cos(angle_diff)],
                         ])
+    def phase(self, freq):
+        wavelength=300000000.0/unitize_f(freq)
+        z=self.thickness
+        return np.matrix([[exp(2j*pi/wavelength*sqrt(self.permitivity)*z),0,0,0],
+                   [0, exp(-2j*pi/wavelength*sqrt(self.permitivity)*z),0,0],
+                   [0,0, exp(2j*pi/wavelength*sqrt(self.permitivity2)*z),0],
+                   [0,0,0, exp(-2j*pi/wavelength*sqrt(self.permitivity2)*z)]])
 
 #Construct interface of multiple dialectric slabs
 class _InterfaceMatrix:
     '''Takes a tuple as an argument and returns an object with .t and .matrix attributes'''
-    def __init__(self, layers):
+    def __init__(self, layers, freq):
         perm_list=[]
         perm_list2=[]
         perm_last=1
@@ -105,10 +104,10 @@ class _InterfaceMatrix:
             if i+1==len(layers):
                 #last layer
                 theta_1 = 0
-                self.matrix=self.matrix*x.M(c_matrix(0))
+                self.matrix=self.matrix*x.M(c_matrix(0))*x.phase(freq)
             else:
                 theta_1 = layers[i+1].angle
-                self.matrix=self.matrix*x.M(layers[i+1])
+                self.matrix=self.matrix*x.M(layers[i+1])*x.phase(freq)
             diff =  theta_1 - layers[i].angle
             self.t_x*=(1+(sqrt(perm_list[i])-sqrt(perm_list[i+1]))/(sqrt(perm_list[i])+sqrt(perm_list[i+1])))*cos(diff) \
                     + (1+(sqrt(perm_list2[i])-sqrt(perm_list[i+1]))/(sqrt(perm_list2[i])+sqrt(perm_list[i+1])))*sin(diff)
@@ -120,11 +119,11 @@ class Interface:
     """Wrapper around interface_matrix."""
     def __init__(self, *arg):
         self.layers = arg
+    def build(self, freq):
         matrices = [x.get_matrix() for x in self.layers]
-        self.c_mat = _InterfaceMatrix(matrices)
-    def trans(self, freq, theta=0):
+        self.c_mat = _InterfaceMatrix(matrices, freq)
+    def trans(self, freq):
         """Calculate transmission ratio for medium/media."""
+        self.build(freq)
         c_mat = self.c_mat
-        matrix_result = reduce(mul, [l.phase(freq) for l in self.layers], c_mat.matrix)
-        print "t_x: {}, t_y: {}, matrix: {}".format(c_mat.t_x, c_mat.t_y, c_mat.matrix)
-        return abs(c_mat.t_x/matrix_result.item(0,0))**2 + abs(c_mat.t_y/matrix_result.item(2,2))**2
+        return abs(c_mat.t_x/c_mat.matrix.item(0,0))**2/2 + abs(c_mat.t_y/c_mat.matrix.item(2,2))**2/2
