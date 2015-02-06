@@ -36,20 +36,27 @@ def graph(interface, start="1ghz", stop="300ghz", step="0.1ghz"):
         frq_range="kHz"
     for x in xrange(int((stop-start)/step)):
         x_vals.append((x*step+start)/divisor)
-    y_vals=get_data(interface, start, stop, step)
-    plt.plot(x_vals, y_vals)
+    (trans, xy_cross, yx_cross)=get_data(interface, start, stop, step)
+    plt.plot(x_vals, trans, label="Total transmission")
+    #plt.plot(x_vals, xy_cross, label="Cross polarization")
     plt.xlabel("Frequency ("+frq_range+")")
     plt.ylabel("Transmission Ratio")
+    #plt.legend()
     plt.show()
 
 def get_data(interface, start, stop, step):
     start = unitize_f(start)
     stop = unitize_f(stop)
     step = unitize_f(step)
-    y_vals=[]
+    trans=[]
+    xy_cross=[]
+    yx_cross=[]
     for x in xrange(int((stop-start)/step)):
-        y_vals.append(interface.trans(x*step+start))
-    return y_vals
+        t_vals = interface.cross(x*step+start)
+        trans.append((t_vals[0])**2/2+(t_vals[1])**2/2+(t_vals[2])**2/2+(t_vals[3])**2/2)
+        xy_cross.append((t_vals[2])**2)
+        yx_cross.append((t_vals[3])**2)
+    return (trans, xy_cross, yx_cross)
     
 #If I recall, this isn't working and I don't have time to figure out why.
 """    

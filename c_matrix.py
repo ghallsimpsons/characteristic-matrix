@@ -38,6 +38,10 @@ def rot(theta):
                       [-sin(theta), 0, cos(theta),0],
                       [0,-sin(theta), 0, cos(theta)]])
 
+def debug(stuff,freq):
+    if freq==150000000000.0:
+        print stuff
+
 class Layer:
     """
     A single dialectric layer. These are compounded using the
@@ -70,11 +74,13 @@ class c_matrix:
         r_xy = (sqrt(self.permitivity)-sqrt(perm2_next))/(sqrt(perm2_next)+sqrt(self.permitivity))
         r_yx = (sqrt(self.permitivity2)-sqrt(perm_next))/(sqrt(perm_next)+sqrt(self.permitivity2))
         angle_diff = layer_next.angle - self.angle
-        return rot(-angle_diff) * np.matrix([[1/(1+r_xx),r_xx*1/(1+r_xx),1/(1+r_xy),r_xy*1/(1+r_xy)],
-                        [r_xx*1/(1+r_xx), 1/(1+r_xx),r_xy*1/(1+r_xy),1/(1+r_xy)],
-                        [-1/(1+r_yx), r_yx*-1/(1+r_yx),1/(1+r_yy),r_yy*1/(1+r_yy)],
-                        [r_yx*-1/(1+r_yx),-1/(1+r_yx),r_yy*1/(1+r_yy),1/(1+r_yy)]
-                        ])
+        #print "r_xx: {}".format(r_xx)
+        #print "r_xy: {}".format(r_xy)
+        return np.matrix([[1/(1+r_xx),r_xx*1/(1+r_xx),1/(1+r_xy),r_xy/(1+r_xy)],
+                          [r_xx*1/(1+r_xx), 1/(1+r_xx),r_xy/(1+r_xy),1/(1+r_xy)],
+                          [-1/(1+r_yx), -r_yx/(1+r_yx),1/(1+r_yy),r_yy/(1+r_yy)],
+                          [-r_yx/(1+r_yx),-1/(1+r_yx),r_yy/(1+r_yy),1/(1+r_yy)]
+                          ])
     def phase(self, freq):
         wavelength=300000000.0/unitize_f(freq)
         z=self.thickness
@@ -105,18 +111,20 @@ class _InterfaceMatrix:
         self.matrix=np.matrix([
             [1/(1+r_xx), 1*r_xx/(1+r_xx), 1/(1+r_xy), 1*r_xy/(1+r_xy)],
             [1*r_xx/(1+r_xx),   1/(1+r_xx),   1*r_xy/(1+r_xy), 1/(1+r_xy)],
-            [-1/(1+r_yx), -1*r_yx/(1+r_yx), 1/(1+r_yy), 1*r_yy/(1+r_yy)],
-            [-1*r_yx/(1+r_yx), -1/(1+r_yx),   1*r_yy/(1+r_yy), 1/(1+r_yy)]
+            [-1/(1+r_yx), -r_yx/(1+r_yx), 1/(1+r_yy), 1*r_yy/(1+r_yy)],
+            [-r_yx/(1+r_yx), -1/(1+r_yx),   1*r_yy/(1+r_yy), 1/(1+r_yy)]
             ])
         i=0
         for x in layers:
             if i+1==len(layers):
                 #last layer
                 theta_1 = 0
-                self.matrix=self.matrix*x.phase(freq)*x.M(c_matrix(0))
+                angle_diff = layers[i].angle
+                self.matrix=self.matrix*x.phase(freq)*rot(-angle_diff)*x.M(c_matrix(0))
             else:
                 theta_1 = layers[i+1].angle
-                self.matrix=self.matrix*x.phase(freq)*x.M(layers[i+1])
+                angle_diff = layers[i].angle - theta_1
+                self.matrix=self.matrix*x.phase(freq)*rot(-angle_diff)*x.M(layers[i+1])
             i+=1
 
 class Interface:
@@ -138,12 +146,9 @@ class Interface:
         """Returns the total transmitted power, cross x-y power, and cross y-x power"""
         self.build(freq)
         c_mat = invert(self.c_mat.matrix)
-        if freq==150000000000.0:
-            print c_mat
         return (
+                abs(1/(c_mat.item(0,0)-c_mat.item(0,2)*c_mat.item(2,0)/c_mat.item(2,2))),#T_xx
                 abs(1/(c_mat.item(2,2)-c_mat.item(0,2)*c_mat.item(2,0)/c_mat.item(0,0))),#T_yy
-                #abs(1/(c_mat.item(0,0)+c_mat.item(2,0)))**2/2 + abs(1/(c_mat.item(2,2)+c_mat.item(0,2)))**2/2,
                 abs(c_mat.item(0,2)/(c_mat.item(0,0)*c_mat.item(2,2)-c_mat.item(2,0)*c_mat.item(0,2))),#T_xy
-                1
-                #abs(1/c_mat.item(0,2))**2
+                abs(c_mat.item(2,0)/(c_mat.item(0,0)*c_mat.item(2,2)-c_mat.item(2,0)*c_mat.item(0,2))) #T_yx
                 )
