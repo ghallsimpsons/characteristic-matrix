@@ -2,14 +2,12 @@
 """
 @author: Grantland Hall
 grantlandhall@berkeley.edu
-
-Last Modified: Nov 2, 2013
 """
 
 import numpy as np
 from numpy import pi, sqrt, exp, sin, cos
 from numpy.linalg import inv as invert
-from unitutils import unitize_f
+from unitutils import *
 
 CENTRAL_FREQ = 1.5E11
 c = 3E8
@@ -41,12 +39,12 @@ class Layer:
         if eps2 == -1:
             eps2 = eps
         self.eps2 = eps2
-        self.angle = angle
+        self.angle = unitize_a(angle)
         if (thickness==-1):
             # If no thickness is specified, choose a sane default
             self.thickness = c/(4*CENTRAL_FREQ*sqrt(eps))
         else:
-            self.thickness = thickness
+            self.thickness = unitize_d(thickness)
         self.eps = eps  
     def __call__(self, angle):
         """

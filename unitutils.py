@@ -6,7 +6,22 @@ Created on Tue Jun 02 23:52:17 2015
 """
 
 import re
+import numpy as np
 
+def unitize_a(angle):
+    """
+    Takes a string such as "58 deg" and returns the
+    angle and a floar, in radians.
+    """
+    try:
+        s_angle=str( '{0:f}'.format(angle) )
+    except:#Can't format if already string, but cast to string just in case
+        s_angle=str(angle)
+    ret_angle=float(re.findall(r"[0-9]*\.?[0-9]*", s_angle)[0])
+    if re.match(r".*deg.*", s_angle, re.I):
+        return np.deg2rad(ret_angle)
+    return ret_angle
+    
 def unitize_f(freq):
     """
     Takes a string such as "150 GHz" and returns the
