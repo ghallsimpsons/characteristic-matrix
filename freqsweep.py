@@ -38,7 +38,7 @@ def graph(interface, start="1ghz", stop="300ghz", step="0.1ghz"):
         x_vals.append((x*step+start)/divisor)
     (trans, xy_cross, yx_cross)=get_data(interface, start, stop, step)
     plt.plot(x_vals, trans, label="Total transmission")
-    #plt.plot(x_vals, xy_cross, label="Cross polarization")
+    plt.plot(x_vals, xy_cross, label="Cross polarization")
     plt.xlabel("Frequency ("+frq_range+")")
     plt.ylabel("Transmission Ratio")
     #plt.legend()

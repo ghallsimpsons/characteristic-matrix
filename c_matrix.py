@@ -32,12 +32,23 @@ def unitize_f(freq):
         freqbase*=1000000000
     return freqbase
     
-def rot(theta):
-    return np.matrix([[cos(theta), 0, sin(theta), 0],
+def rot(matrix, theta):
+    """
+    Perform a rank-2 tensor rotation or matrix
+    by angle theta. That is, for an input matrix M,
+    the result is M'=R*M*R-1.
+    """
+    R = np.matrix([[cos(theta), 0, sin(theta), 0],
                       [0, cos(theta), 0, sin(theta)],
                       [-sin(theta), 0, cos(theta),0],
                       [0,-sin(theta), 0, cos(theta)]])
-
+    # Hardcode Rinv, since the form is simple, and matrix inversion is hard
+    Rinv = np.matrix([[cos(theta), 0, -sin(theta), 0],
+                      [0, cos(theta), 0, -sin(theta)],
+                      [sin(theta), 0, cos(theta),0],
+                      [0,sin(theta), 0, cos(theta)]])
+    return R*matrix*Rinv
+    
 def debug(stuff,freq):
     if freq==150000000000.0:
         print stuff
@@ -76,11 +87,16 @@ class c_matrix:
         angle_diff = layer_next.angle - self.angle
         #print "r_xx: {}".format(r_xx)
         #print "r_xy: {}".format(r_xy)
-        return np.matrix([[1/(1+r_xx),r_xx*1/(1+r_xx),1/(1+r_xy),r_xy/(1+r_xy)],
-                          [r_xx*1/(1+r_xx), 1/(1+r_xx),r_xy/(1+r_xy),1/(1+r_xy)],
-                          [-1/(1+r_yx), -r_yx/(1+r_yx),1/(1+r_yy),r_yy/(1+r_yy)],
-                          [-r_yx/(1+r_yx),-1/(1+r_yx),r_yy/(1+r_yy),1/(1+r_yy)]
-                          ])
+        return np.matrix([
+             [cos(angle_diff)/(1+r_xx),  r_xx*cos(angle_diff)/(1+r_xx),
+                 sin(angle_diff)/(1+r_xy),  r_xy*sin(angle_diff)/(1+r_xy)],
+             [r_xx*cos(angle_diff)/(1+r_xx),  cos(angle_diff)/(1+r_xx),
+                 r_xy*sin(angle_diff)/(1+r_xy),  sin(angle_diff)/(1+r_xy)],
+             [-sin(angle_diff)/(1+r_yx),  -r_yx*sin(angle_diff)/(1+r_yx),
+                 cos(angle_diff)/(1+r_yy),  r_yy*cos(angle_diff)/(1+r_yy)],
+             [-r_yx*sin(angle_diff)/(1+r_yx),  -sin(angle_diff)/(1+r_yx),
+                 r_yy*cos(angle_diff)/(1+r_yy),  cos(angle_diff)/(1+r_yy)]
+             ])
     def phase(self, freq):
         wavelength=300000000.0/unitize_f(freq)
         z=self.thickness
@@ -109,10 +125,14 @@ class _InterfaceMatrix:
         r_yx = (1-sqrt(perm_list2[0]))/(sqrt(perm_list2[0])+1)
         theta_0 = layers[0].angle
         self.matrix=np.matrix([
-            [1/(1+r_xx), 1*r_xx/(1+r_xx), 1/(1+r_xy), 1*r_xy/(1+r_xy)],
-            [1*r_xx/(1+r_xx),   1/(1+r_xx),   1*r_xy/(1+r_xy), 1/(1+r_xy)],
-            [-1/(1+r_yx), -r_yx/(1+r_yx), 1/(1+r_yy), 1*r_yy/(1+r_yy)],
-            [-r_yx/(1+r_yx), -1/(1+r_yx),   1*r_yy/(1+r_yy), 1/(1+r_yy)]
+             [cos(theta_0)/(1+r_xx),  r_xx*cos(theta_0)/(1+r_xx),
+                 sin(theta_0)/(1+r_xy),  r_xy*sin(theta_0)/(1+r_xy)],
+             [r_xx*cos(theta_0)/(1+r_xx),  cos(theta_0)/(1+r_xx),
+                 r_xy*sin(theta_0)/(1+r_xy),  sin(theta_0)/(1+r_xy)],
+             [-sin(theta_0)/(1+r_yx),  -r_yx*sin(theta_0)/(1+r_yx),
+                 cos(theta_0)/(1+r_yy),  r_yy*cos(theta_0)/(1+r_yy)],
+             [-r_yx*sin(theta_0)/(1+r_yx),  -sin(theta_0)/(1+r_yx),
+                 r_yy*cos(theta_0)/(1+r_yy),  cos(theta_0)/(1+r_yy)]
             ])
         i=0
         for x in layers:
@@ -120,11 +140,13 @@ class _InterfaceMatrix:
                 #last layer
                 theta_1 = 0
                 angle_diff = layers[i].angle
-                self.matrix=self.matrix*x.phase(freq)*rot(-angle_diff)*x.M(c_matrix(0))
+                rot_mat = rot( x.M(c_matrix(0)), angle_diff )
+                self.matrix=self.matrix*x.phase(freq)*rot_mat
             else:
                 theta_1 = layers[i+1].angle
                 angle_diff = layers[i].angle - theta_1
-                self.matrix=self.matrix*x.phase(freq)*rot(-angle_diff)*x.M(layers[i+1])
+                rot_mat = rot( x.M(layers[i+1]), angle_diff )
+                self.matrix=self.matrix*x.phase(freq)*rot_mat
             i+=1
 
 class Interface:
