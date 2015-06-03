@@ -10,6 +10,7 @@ import numpy as np
 #from scipy.signal import argrelextrema
 from c_matrix import unitize_f
 import matplotlib.pyplot as plt
+from unitutils import *
 from numpy import sqrt
 
 central_freq="150GHz"
