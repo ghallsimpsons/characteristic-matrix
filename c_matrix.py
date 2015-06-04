@@ -167,10 +167,10 @@ class Interface:
         self.build(freq)
         r_mat = self.r_mat
         return (
-                abs(1/(r_mat.item(0,0)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(2,2))),#t_xx
-                abs(1/(r_mat.item(2,2)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(0,0))),#t_yy
-                abs(r_mat.item(0,2)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))),#t_xy
-                abs(r_mat.item(2,0)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))) #t_yx
+                abs(1/(r_mat.item(0,0)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(2,2))),#T_xx
+                abs(1/(r_mat.item(2,2)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(0,0))),#T_yy
+                abs(r_mat.item(0,2)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))),#T_xy
+                abs(r_mat.item(2,0)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))) #T_yx
                 )
     def __mul__(self, vect):
         assert hasattr(self, "c_mat"), ("You must build the transmission matrix"
@@ -186,8 +186,8 @@ class Interface:
             t_yy = 1/(r_mat.item(2,2)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(0,0))
             t_xy = r_mat.item(0,2)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))
             t_yx = r_mat.item(2,0)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))
-            v_x = t_xx*vect.v_x + t_yx*vect.v_y
-            v_y = t_yy*vect.v_y + t_xy*vect.v_x
+            v_x = t_xx*vect.v_x - t_xy*vect.v_y
+            v_y = t_yy*vect.v_y - t_yx*vect.v_x
             return PolarizationTwoVector(v_x, v_y)
         else:
             raise TypeError("Operand must be a StokesVector or PolarizationVector")
