@@ -40,7 +40,8 @@ def graph(interface, start="1ghz", stop="300ghz", step="0.1ghz"):
     plt.plot(x_vals, xy_cross, label="Cross polarization")
     plt.xlabel("Frequency ("+frq_range+")")
     plt.ylabel("Transmission Ratio")
-    #plt.legend()
+    plt.ylim(ymax=1)
+    plt.legend()
     plt.show()
 
 def get_data(interface, start, stop, step):

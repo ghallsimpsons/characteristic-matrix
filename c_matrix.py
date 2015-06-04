@@ -7,12 +7,13 @@ grantlandhall@berkeley.edu
 import numpy as np
 from numpy import pi, sqrt, exp, sin, cos
 from numpy.linalg import inv as invert
-from unitutils import *
+from unitutils import unitize_f, unitize_d, unitize_a
+from vector_types import StokesVector, PolarizationTwoVector
 
-CENTRAL_FREQ = 1.5E11
+CENTRAL_FREQ = 1.24E11
 c = 3E8
 
-    
+
 def rot(matrix, theta):
     """
     Perform a tensor rotation of the operator matrix
@@ -52,8 +53,7 @@ class Layer:
         """
         return Layer(self.eps, self.thickness, self.eps2, angle)
     def get_matrix(self):
-        thickness = self.thickness
-        return c_matrix(thickness=thickness, eps=self.eps, eps2=self.eps2, angle=self.angle)
+        return c_matrix(thickness=self.thickness, eps=self.eps, eps2=self.eps2, angle=self.angle)
 
 class c_matrix:
     """Used for normal incidence TE wave on linear dialectric or birefringent material."""
@@ -147,7 +147,9 @@ class Interface:
         self.layers = arg
     def build(self, freq):
         matrices = [x.get_matrix() for x in self.layers]
+        self._built_freq = freq
         self.c_mat = _InterfaceMatrix(matrices, freq)
+        self.r_mat = invert(self.c_mat.matrix)
     def trans(self, freq):
         """Calculate transmission ratio for medium/media."""
         self.build(freq)
@@ -155,7 +157,7 @@ class Interface:
         return ( abs( 1/(c_mat.item(0,0)+c_mat.item(2,0)) )**2/2 +
                     abs( 1/(c_mat.item(2,2)+c_mat.item(0,2)) )**2/2 )
         #return abs(1/(c_mat.matrix.item(0,0)))**2/2 + abs(1/(c_mat.matrix.item(2,2)))**2/2
-    def cross(self,freq):
+    def cross(self, freq):
         """
         Returns the total transmitted power along each axis,
         the cross x-y power, and cross y-x power. The i-j cross
@@ -163,10 +165,34 @@ class Interface:
         polarization along the i axis.
         """
         self.build(freq)
-        r_mat = invert(self.c_mat.matrix)
+        r_mat = self.r_mat
         return (
-                abs(1/(r_mat.item(0,0)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(2,2))),#T_xx
-                abs(1/(r_mat.item(2,2)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(0,0))),#T_yy
-                abs(r_mat.item(0,2)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))),#T_xy
-                abs(r_mat.item(2,0)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))) #T_yx
+                abs(1/(r_mat.item(0,0)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(2,2))),#t_xx
+                abs(1/(r_mat.item(2,2)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(0,0))),#t_yy
+                abs(r_mat.item(0,2)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))),#t_xy
+                abs(r_mat.item(2,0)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))) #t_yx
                 )
+    def __mul__(self, vect):
+        assert hasattr(self, "c_mat"), ("You must build the transmission matrix"
+            " for a given frequency before using the interface as an operator.")
+        if isinstance(vect, StokesVector):
+            # Convert to PolarizationTwoVector, then multiply
+            v = vect.cartesian
+            s_trans = self * v
+            return s_trans.stokes
+        elif isinstance(vect, PolarizationTwoVector):
+            r_mat = self.r_mat
+            t_xx = 1/(r_mat.item(0,0)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(2,2))
+            t_yy = 1/(r_mat.item(2,2)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(0,0))
+            t_xy = r_mat.item(0,2)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))
+            t_yx = r_mat.item(2,0)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))
+            v_x = t_xx*vect.v_x + t_yx*vect.v_y
+            v_y = t_yy*vect.v_y + t_xy*vect.v_x
+            return PolarizationTwoVector(v_x, v_y)
+        else:
+            raise TypeError("Operand must be a StokesVector or PolarizationVector")
+    def __repr__(self):
+        if hasattr(self, "r_mat"):
+            return "Interface built at f={}\n{}".format(self._built_freq, str(self.r_mat))
+        else:
+            return "Interface has not been built yet."
