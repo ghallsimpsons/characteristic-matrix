@@ -5,8 +5,17 @@ Created on Wed Jun 03 14:32:21 2015
 @author: Grantland
 """
 
-from numpy import arctan2, sin, cos, arcsin, angle, sqrt
+from numpy import arctan2, sin, cos, arcsin, angle, sqrt, pi
+from numpy import isclose, allclose
 from unitutils import unitize_a
+
+def isclosemod(a, b, atol=1E-5, mod=2*pi):
+    """
+    Return whether two numbers (or arrays) are within atol of each other
+    in the modulo space determined by mod.
+    """
+    return (isclose(a%mod, b%mod, atol=atol) 
+            or isclose((a+atol)%mod, (b+atol)%mod, atol=atol))
 
 class PolarizationVector:
     def __init__(self, *args):
@@ -40,17 +49,38 @@ class PolarizationVector:
         phase_new = arctan2( a1*cos(p1) + a2*cos(p2), a1*sin(p1) + a2*sin(p2) )
         return PolarizationVector(amp_new, phase_new)
     def __mul__(self, num):
+        """Scalar multiplication."""
         assert isinstance(num, (int, long, float, complex))
         amp_new = self.amp * abs(num)
         phase_new = self.phase + angle(num)
         return PolarizationVector(amp_new, phase_new)
     def __rmul__(self, num):
+        """Scalar multiplication."""
         assert isinstance(num, (int, long, float, complex))
         amp_new = self.amp * abs(num)
         phase_new = self.phase + angle(num)
         return PolarizationVector(amp_new, phase_new)
     def power(self):
+        """
+        Power is the square of the amplitude of the electric field.
+        """
         return self.amp**2
+    def __eq__(self, other):
+        """
+        Check if vector is essentially equal to another. This makes it
+        easy to confirm that vector transformations are behaving as they
+        should.
+        """
+        if not isclosemod(self.phase, other.phase):
+            if isclosemod(self.phase, other.phase+pi):
+                # If they're pi out of phase, flip one of the amplitudes
+                return isclose(self.amp, -other.amp, atol=1E-5)
+            else:
+                return False
+        return isclose(self.amp, other.amp)
+    def __ne__(self, other):
+        #This isn't the default behavior because <insert bogus explanation here>
+        return not self==other
     def __repr__(self):
         return "Amplitude: {}\nRelative phase: {}".format(self.amp, self.phase)
 
@@ -88,6 +118,18 @@ class StokesVector:
         v_x = PolarizationVector(E_x)
         v_y = PolarizationVector(E_y)
         return PolarizationTwoVector(v_x, v_y)
+    def __eq__(self, other):
+        """
+        Returns whether or not two stokes vectors are essentially equal.
+        """
+        if isinstance(other, StokesVector):
+            return allclose([self.I, self.Q, self.U, self.V], 
+                        [other.I, other.Q, other.U, other.V], atol=1E-5)
+        elif isinstance(other, PolarizationTwoVector):
+            return self == other.stokes
+    def __ne__(self, other):
+        #This isn't the default behavior because <insert bogus explanation here>
+        return not self==other
     def __repr__(self):
         return "I: {}, Q: {}, U: {}, V: {}".format(self.I, self.Q, self.U, self.V) 
     
@@ -96,35 +138,37 @@ class PolarizationTwoVector:
     This class is similar to a Stokes Vector,
     but designed to allow phase-offset vector addition.
     """
-    def __init__(self, vector_x, vector_y, axis_orientation = 0):
+    def __init__(self, vector_x, vector_y):
         self.v_x = vector_x
         self.v_y = vector_y
-        self.orientation = axis_orientation
     def rot(self, angle):
-        """Return rotated representation of self"""
+        """Return rotated copy of self."""
         rad = unitize_a(angle)
         x_to_rot_x = self.v_x.amp*cos(rad)
         x_to_rot_y = -self.v_x.amp*sin(rad)
-        y_to_rot_x = self.v_y.amp*cos(rad)
+        y_to_rot_x = self.v_y.amp*sin(rad)
         y_to_rot_y = self.v_y.amp*cos(rad)
         new_x = PolarizationVector(x_to_rot_x, self.v_x.phase) + \
             PolarizationVector(y_to_rot_x, self.v_y.phase)
         new_y = PolarizationVector(x_to_rot_y, self.v_x.phase) + \
             PolarizationVector(y_to_rot_y, self.v_y.phase)
-        return PolarizationTwoVector(new_x, new_y, self.orientation + rad)   
+        return PolarizationTwoVector(new_x, new_y)   
     def _rot(self, angle):
-        """Rotate self"""
+        """Rotate self by angle."""
         self = self.rot(angle)
     def __add__(self, other):
-        """
-        Returns two-vector in the orientation of the first two-vector
-        """
-        offset = other.orientation - self.orientation
-        other_r = other.rot(-offset)
-        return PolarizationTwoVector( self.v_x + other_r.v_x, 
-                            self.v_y + other_r.v_y, self.orientation )
+        return PolarizationTwoVector( self.v_x + other.v_x, 
+                                      self.v_y + other.v_y )
     @property
     def stokes(self):
         return StokesVector(self.v_x, self.v_y)
+    def __eq__(self, other):
+        if isinstance(other, PolarizationTwoVector):
+            return self.v_x == other.v_x and self.v_y == other.v_y
+        elif isinstance(other, StokesVector):
+            return self.stokes == other
+    def __ne__(self, other):
+        #This isn't the default behavior because <insert bogus explanation here>
+        return not self==other
     def __repr__(self):
-        return "Angle: {}\nX:\n{}\nY:\n{}".format(self.orientation, self.v_x, self.v_y)
+        return "X:\n{}\nY:\n{}".format(self.v_x, self.v_y)
