@@ -28,16 +28,18 @@ pol_out = ideal_ahwp * pol_in
 cart_in = PolarizationTwoVector(PolarizationVector(1),PolarizationVector(0)).rot("-90 deg")
 cart_out = ideal_ahwp * cart_in
 
+print "pol out: {}".format(pol_out)
+
 failed_tests = []
 if pol_in != cart_in:
     failed_tests.append(("Cartesian representation not equal to Stokes:\n"
                          "Cartesian: {}\nStokes: {}").format(pol_in, cart_in))
 if pol_out != cart_out:
     failed_tests.append(("Cartesian representation not equal to Stokes:\n"
-                         "Cartesian: {}\nStokes: {}").format(pol_in, cart_in))
+                         "Cartesian: {}\nStokes: {}").format(pol_out, cart_out))
 if pol_in == pol_out:
     failed_tests.append(("Input vector equal to output vector:\n"
-                         "Input: {}\nOutput: {}").format(pol_in, cart_in))
+                         "Input: {}\nOutput: {}").format(pol_in, pol_out))
 if pol_out.I > pol_in.I:
     failed_tests.append(("Output intensity greater than input intensity:\n"
                          "Input: {}\nOutput: {}").format(pol_in, pol_out))

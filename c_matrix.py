@@ -62,7 +62,7 @@ class c_matrix:
         self.permitivity2=eps2
         self.thickness=thickness
         self.angle=angle
-    def M(self, layer_next, freq):
+    def M(self, freq, layer_next=None):
         """
         Returns the matrix operator which acts on the Poynting vector,
         (Ex,Ey,Hx,Hy). We do this by first projecting into E space, acting
@@ -72,7 +72,7 @@ class c_matrix:
         """
         Cx = sqrt(self.permitivity)/(c*mu_0)
         Cy = sqrt(self.permitivity2)/(c*mu_0)
-        E_to_S = np.matrix([
+        E_to_S = np.matrix([ #Eq3.84
             [ 1 , 0 , 1 , 0 ],
             [ 0 , 1 , 0 , 1 ],
             [ 0 ,-Cy, 0 ,Cy ],
@@ -80,16 +80,21 @@ class c_matrix:
             ])
         wavelength = c/unitize_f(freq)
         z = self.thickness
-        theta = layer_next.angle - self.angle
+        if layer_next is not None:
+            theta = layer_next.angle - self.angle
+        else:
+            theta = -self.angle
         phase_x = exp(2j*pi/wavelength*sqrt(self.permitivity)*z)
         phase_y = exp(2j*pi/wavelength*sqrt(self.permitivity2)*z)
-        phase = 0.5*np.matrix([
-            [phase_x*cos(theta),phase_x*sin(theta),-phase_y*sin(theta)/Cx,phase_y*cos(theta)/Cx],
-            [-phase_y*sin(theta),phase_y*cos(theta),-phase_x*cos(theta)/Cy,-phase_x*sin(theta)/Cy],
-            [phase_x*cos(theta),phase_x*sin(theta),phase_y*sin(theta)/Cx,-phase_y*cos(theta)/Cx],
-            [-phase_y*sin(theta),phase_y*cos(theta),phase_x*cos(theta)/Cy,phase_x*sin(theta)/Cy]
+        inv_x = exp(-2j*pi/wavelength*sqrt(self.permitivity)*z)
+        inv_y = exp(-2j*pi/wavelength*sqrt(self.permitivity2)*z)
+        phase = 0.5*np.matrix([ #Eq3.85
+            [phase_x*cos(theta),phase_x*sin(theta),-phase_x*sin(theta)/Cx,phase_x*cos(theta)/Cx],
+            [-phase_y*sin(theta),phase_y*cos(theta),-phase_y*cos(theta)/Cy,-phase_y*sin(theta)/Cy],
+            [inv_x*cos(theta),inv_x*sin(theta),inv_x*sin(theta)/Cx,-inv_x*cos(theta)/Cx],
+            [-inv_y*sin(theta),inv_y*cos(theta),inv_y*cos(theta)/Cy,inv_y*sin(theta)/Cy]
             ])
-        return E_to_S*phase
+        return E_to_S*phase #Eq3.86
 
 class _InterfaceMatrix:
     """
@@ -108,19 +113,20 @@ class _InterfaceMatrix:
             perm_list_y.append(x.permitivity2)
         theta = layers[0].angle
         m = 1
-        C = 1/(c*mu_0)
+        C = 1/(c*mu_0) #Eq3.73
         for i, this_layer in enumerate(layers[:-1]):
-            m= m*this_layer.M(layers[i+1], freq)
-        self.matrix = np.matrix([
-            [cos(theta), sin(theta), -sin(theta)*C, cos(theta)*C],
-            [-sin(theta), cos(theta), -cos(theta)*C, -sin(theta)*C],
-            [cos(theta), sin(theta), sin(theta)*C, -cos(theta)*C],
-            [-sin(theta), cos(theta), cos(theta)*C, sin(theta)*C]
-                ]) * np.matrix([
-            [m.item(0,0)+m.item(0,3)/C, m.item(0,1)-m.item(0,2)/C],
-            [m.item(1,0)+m.item(1,3)/C, m.item(1,1)-m.item(1,2)/C],
-            [m.item(2,0)+m.item(2,3)/C, m.item(2,1)-m.item(2,2)/C],
-            [m.item(3,0)+m.item(3,3)/C, m.item(3,1)-m.item(3,2)/C]
+            m = m*this_layer.M(freq, layers[i+1]) #Eq3.87
+        m = m*layers[-1].M(freq)
+        self.matrix = np.matrix([ #Eq3.94
+            [cos(theta), sin(theta), -sin(theta)/C, cos(theta)/C],
+            [-sin(theta), cos(theta), -cos(theta)/C, -sin(theta)/C],
+            [cos(theta), sin(theta), sin(theta)/C, -cos(theta)/C],
+            [-sin(theta), cos(theta), cos(theta)/C, sin(theta)/C]
+                ]) * np.matrix([ #Eq3.93
+            [m.item(0,0)+m.item(0,3)*C, m.item(0,1)-m.item(0,2)*C],
+            [m.item(1,0)+m.item(1,3)*C, m.item(1,1)-m.item(1,2)*C],
+            [m.item(2,0)+m.item(2,3)*C, m.item(2,1)-m.item(2,2)*C],
+            [m.item(3,0)+m.item(3,3)*C, m.item(3,1)-m.item(3,2)*C]
             ])
 
 class Interface:
@@ -131,13 +137,6 @@ class Interface:
         matrices = [x.get_matrix() for x in self.layers]
         self._built_freq = freq
         self.c_mat = _InterfaceMatrix(matrices, freq)
-    def trans(self, freq):
-        """Calculate transmission ratio for medium/media."""
-        self.build(freq)
-        c_mat = invert(self.c_mat.matrix)
-        return ( abs( 1/(c_mat.item(0,0)+c_mat.item(2,0)) )**2/2 +
-                    abs( 1/(c_mat.item(2,2)+c_mat.item(0,2)) )**2/2 )
-        #return abs(1/(c_mat.matrix.item(0,0)))**2/2 + abs(1/(c_mat.matrix.item(2,2)))**2/2
     def __mul__(self, vect):
         assert hasattr(self, "c_mat"), ("You must build the transmission matrix"
             " for some frequency before using the interface as an operator.")
@@ -148,21 +147,18 @@ class Interface:
             return s_trans.stokes
         elif isinstance(vect, PolarizationTwoVector):
             m = self.c_mat.matrix
-            t_xx = ((m.item(1,1)*m.item(2,0)-m.item(2,1)*m.item(1,0))/
-                    (m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0)))
-            t_yy = ((m.item(0,0)*m.item(2,1)-m.item(2,0)*m.item(0,1))/
-                    (m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0)))
-            t_xy = ((m.item(3,0)*m.item(1,1)-m.item(3,1)*m.item(1,0))/
-                    (m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0)))
-            t_yx = ((m.item(3,1)*m.item(0,0)-m.item(3,0)*m.item(0,1))/
-                    (m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0)))
-            v_x = t_xx*vect.v_x - t_xy*vect.v_y
-            v_y = t_yy*vect.v_y - t_yx*vect.v_x
+            #Eq3.103-106
+            t_xx = m.item(1,1)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))
+            t_yy = -m.item(0,0)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))
+            t_xy = -m.item(0,1)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))
+            t_yx = m.item(1,0)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))
+            v_x = t_xx*vect.v_x + t_xy*vect.v_y
+            v_y = t_yy*vect.v_y + t_yx*vect.v_x
             return PolarizationTwoVector(v_x, v_y)
-        else:
-            raise TypeError("Operand must be a StokesVector or PolarizationVector")
+        else:   
+            raise TypeError("Operand must be a StokesVector or PolarizationTwoVector")
     def __repr__(self):
-        if hasattr(self, "r_mat"):
-            return "Interface built at f={}\n{}".format(self._built_freq, str(self.r_mat))
+        if hasattr(self, "c_mat"):
+            return "Interface built at f={}\n{}".format(self._built_freq, str(self.c_mat.matrix))
         else:
             return "Interface has not been built yet."

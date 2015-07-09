@@ -29,7 +29,7 @@ class PolarizationVector:
         if len(args) == 2:
             self.amp = args[0]
             self.phase = unitize_a(args[1])
-        elif len(args) ==1:
+        elif len(args) == 1:
             self.amp = abs(args[0])
             self.phase = angle(args[0])
     def __add__(self, other):
@@ -60,6 +60,7 @@ class PolarizationVector:
         amp_new = self.amp * abs(num)
         phase_new = self.phase + angle(num)
         return PolarizationVector(amp_new, phase_new)
+    @property
     def power(self):
         """
         Power is the square of the amplitude of the electric field.
@@ -99,8 +100,8 @@ class StokesVector:
         elif len(args) == 2:
             x = args[0]
             y = args[1]
-            self.I = x.power() + y.power()
-            self.Q = x.power() - y.power()
+            self.I = x.power + y.power
+            self.Q = x.power - y.power
             self.U = 2*x.amp*y.amp*(cos(x.phase)*cos(y.phase)-sin(x.phase)*sin(y.phase))
             self.V = -2*x.amp*y.amp*(cos(x.phase)*sin(y.phase)+sin(x.phase)*cos(y.phase))
         else:

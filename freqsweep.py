@@ -9,7 +9,8 @@ Last Modified: Nov 2, 2013
 import numpy as np
 from c_matrix import *
 import matplotlib.pyplot as plt
-from unitutils import *
+from unitutils import unitize_f
+from vector_types import PolarizationVector, PolarizationTwoVector
 
 central_freq="150GHz"
 
@@ -35,7 +36,7 @@ def graph(interface, start="1ghz", stop="300ghz", step="0.1ghz"):
         frq_range="kHz"
     for x in xrange(int((stop-start)/step)):
         x_vals.append((x*step+start)/divisor)
-    (trans, xy_cross, yx_cross)=get_data(interface, start, stop, step)
+    (trans, xy_cross)=get_data(interface, start, stop, step)
     plt.plot(x_vals, trans, label="Total transmission")
     plt.plot(x_vals, xy_cross, label="Cross polarization")
     plt.xlabel("Frequency ("+frq_range+")")
@@ -51,12 +52,16 @@ def get_data(interface, start, stop, step):
     trans=[]
     xy_cross=[]
     yx_cross=[]
-    for x in xrange(int((stop-start)/step)):
-        t_vals = interface.cross(x*step+start)
-        trans.append((t_vals[0])**2/2+(t_vals[1])**2/2+(t_vals[2])**2/2+(t_vals[3])**2/2)
-        xy_cross.append((t_vals[2])**2)
-        yx_cross.append((t_vals[3])**2)
-    return (trans, xy_cross, yx_cross)
+    unit = PolarizationVector(1)
+    zero = PolarizationVector(0)
+    vect_x = PolarizationTwoVector(unit,zero)
+    vect_y = PolarizationTwoVector(zero,unit)
+    for f in xrange(int((stop-start)/step)):
+        interface.build(start+f*step)
+        out_x = interface*vect_x
+        trans.append(out_x.v_x.power)
+        xy_cross.append(out_x.v_y.power)
+    return (trans, xy_cross)
     
 #If I recall, this isn't working and I don't have time to figure out why.
 """    
