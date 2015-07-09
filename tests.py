@@ -28,8 +28,6 @@ pol_out = ideal_ahwp * pol_in
 cart_in = PolarizationTwoVector(PolarizationVector(1),PolarizationVector(0)).rot("-90 deg")
 cart_out = ideal_ahwp * cart_in
 
-print "pol out: {}".format(pol_out)
-
 failed_tests = []
 if pol_in != cart_in:
     failed_tests.append(("Cartesian representation not equal to Stokes:\n"
@@ -56,4 +54,7 @@ if len(failed_tests):
     for failure in failed_tests:
         warn(failure)
 else:
-    print "Unit Tests Passed!"
+    if __name__ == "__main__":
+        # If running deliberately, let user know all is good.
+        # This way, tests can be included unobtrusively in other modules.
+        print "Unit Tests Passed!"
