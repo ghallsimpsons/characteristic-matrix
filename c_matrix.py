@@ -12,6 +12,7 @@ from vector_types import StokesVector, PolarizationTwoVector
 
 CENTRAL_FREQ = 1.24E11
 c = 3E8
+mu_0 = 1.2566371E-6
 
 def rot(matrix, theta):
     """
@@ -61,58 +62,34 @@ class c_matrix:
         self.permitivity2=eps2
         self.thickness=thickness
         self.angle=angle
-    def M(self, layer_next):
+    def M(self, layer_next, freq):
         """
-        Builds the matrix operator representing the interface between
-        self and layer_next.
+        Returns the matrix operator which acts on the Poynting vector,
+        (Ex,Ey,Hx,Hy). We do this by first projecting into E space, acting
+        the phase propogator, and then projection back into S.
+        We combine the last two steps, and a change of basis, into the 
+        second matrix, because it lends itself to a compact form.
         """
-        n1x = sqrt(self.permitivity)
-        n1y = sqrt(self.permitivity2)
-        n2x = sqrt(layer_next.permitivity)
-        n2y = sqrt(layer_next.permitivity2)
-        angle_diff = layer_next.angle - self.angle
-        r_xx = (n1x-n2x)/(n1x+n2x)
-        r_yy = (n1y-n2y)/(n1y+n2y)
-        r_xy = (n1x-n2y)/(n1x+n2y)
-        r_yx = (n1y-n2x)/(n1y+n2x)
-        t_xx = (1+r_xx)*n1x**2/n2x**2
-        t_yy = (1+r_yy)*n1y**2/n2y**2
-        t_yx = (1+r_yx)*n1x**2/n2y**2
-        t_xy = (1+r_xy)*n1y**2/n2x**2
-        return np.matrix([
-             [ cos(angle_diff)/t_xx   , cos(angle_diff)*r_xx/t_xx,
-                  sin(angle_diff)/t_xy  ,sin(angle_diff)*r_xy/t_xy ],
-             [cos(angle_diff)*r_xx/t_xx ,  cos(angle_diff)/t_xx  ,
-                  sin(angle_diff)*r_xy/t_xy,  sin(angle_diff)/t_xy ],
-             [ -sin(angle_diff)/t_yx  ,-sin(angle_diff)*r_yx/t_yx,
-                  cos(angle_diff)/t_yy  ,cos(angle_diff)*r_yy/t_yy ],
-             [-sin(angle_diff)*r_yx/t_yx, -sin(angle_diff)/t_yx  ,
-                  cos(angle_diff)*r_yy/t_yy,  cos(angle_diff)/t_yy ]
-             ])
-        """
-        r_xx = cos(angle_diff)*(n1x-n2x)/(n1x+n2x)
-        r_yy = cos(angle_diff)*(n1y-n2y)/(n1y+n2y)
-        r_xy = sin(angle_diff)*(n1x-n2y)/(n1x+n2y)
-        r_yx = sin(angle_diff)*(n1y-n2x)/(n1y+n2x)
-        return np.matrix([
-             [ 1/(1+r_xx)   , r_xx/(1+r_xx), 1/(1+r_xy)   ,r_xy/(1+r_xy)],
-             [r_xx/(1+r_xx) ,  1/(1+r_xx)  , r_xy/(1+r_xy),  1/(1+r_xy) ],
-             [ -1/(1+r_yx)  ,-r_yx/(1+r_yx), 1/(1+r_yy)   ,r_yy/(1+r_yy)],
-             [-r_yx/(1+r_yx), -1/(1+r_yx)  , r_yy/(1+r_yy),  1/(1+r_yy) ]
-             ])
-        """
-    def phase(self, freq):
-        """
-        Returns the phase propogation operator through the layer.
-        """
-        wavelength=c/unitize_f(freq)
-        z=self.thickness
-        return np.matrix([
-                   [exp(2j*pi/wavelength*sqrt(self.permitivity)*z),0,0,0],
-                   [0, exp(-2j*pi/wavelength*sqrt(self.permitivity)*z),0,0],
-                   [0,0, exp(2j*pi/wavelength*sqrt(self.permitivity2)*z),0],
-                   [0,0,0, exp(-2j*pi/wavelength*sqrt(self.permitivity2)*z)]
-                   ])
+        Cx = sqrt(self.permitivity)/(c*mu_0)
+        Cy = sqrt(self.permitivity2)/(c*mu_0)
+        E_to_S = np.matrix([
+            [ 1 , 0 , 1 , 0 ],
+            [ 0 , 1 , 0 , 1 ],
+            [ 0 ,-Cy, 0 ,Cy ],
+            [Cx , 0 ,-Cx, 0 ]
+            ])
+        wavelength = c/unitize_f(freq)
+        z = self.thickness
+        theta = layer_next.angle - self.angle
+        phase_x = exp(2j*pi/wavelength*sqrt(self.permitivity)*z)
+        phase_y = exp(2j*pi/wavelength*sqrt(self.permitivity2)*z)
+        phase = 0.5*np.matrix([
+            [phase_x*cos(theta),phase_x*sin(theta),-phase_y*sin(theta)/Cx,phase_y*cos(theta)/Cx],
+            [-phase_y*sin(theta),phase_y*cos(theta),-phase_x*cos(theta)/Cy,-phase_x*sin(theta)/Cy],
+            [phase_x*cos(theta),phase_x*sin(theta),phase_y*sin(theta)/Cx,-phase_y*cos(theta)/Cx],
+            [-phase_y*sin(theta),phase_y*cos(theta),phase_x*cos(theta)/Cy,phase_x*sin(theta)/Cy]
+            ])
+        return E_to_S*phase
 
 class _InterfaceMatrix:
     """
@@ -121,7 +98,7 @@ class _InterfaceMatrix:
     There is no compelling reason for this to be a separate class from
     the Interface class.
     """
-    def __init__(self, layers, freq, perm_start_x=1, perm_start_y=1):
+    def __init__(self, layers, freq):
         perm_list_x=[]
         perm_list_y=[]
         # What material the interface exits to (air)
@@ -129,40 +106,22 @@ class _InterfaceMatrix:
         for x in layers:
             perm_list_x.append(x.permitivity)
             perm_list_y.append(x.permitivity2)
-        perm_list_x.append(perm_last)
-        perm_list_y.append(perm_last)
-        # Calculate the reflection coefficients for the first layer from air
-        nx0 = sqrt(perm_start_x)
-        ny0 = sqrt(perm_start_y)
-        nx1 = sqrt(perm_list_x[0])
-        ny1 = sqrt(perm_list_y[0])
-        r_xx = (nx0-nx1)/(nx1+nx0)
-        r_yy = (ny0-ny1)/(ny1+ny0)
-        r_xy = (nx0-ny1)/(nx1+ny0)
-        r_yx = (ny0-nx1)/(ny1+nx0)
-        t_xx = (1+r_xx)*perm_start_x/perm_list_x[0]
-        t_yy = (1+r_yy)*perm_start_y/perm_list_y[0]
-        t_yx = (1+r_yx)*perm_start_x/perm_list_y[0]
-        t_xy = (1+r_xy)*perm_start_y/perm_list_x[0]
-        angle_diff = layers[0].angle
-        # 4x4 analog of the Hou reflection matrix
-        cs = cos(angle_diff)
-        sn = sin(angle_diff)
+        theta = layers[0].angle
+        m = 1
+        C = 1/(c*mu_0)
+        for i, this_layer in enumerate(layers[:-1]):
+            m= m*this_layer.M(layers[i+1], freq)
         self.matrix = np.matrix([
-             [   cs/t_xx   , cs*r_xx/t_xx,   sn/t_xy   ,sn*r_xy/t_xy],
-             [cs*r_xx/t_xx ,  cs/t_xx    , sn*r_xy/t_xy,   sn/t_xy  ],
-             [  -sn/t_yx   ,-sn*r_yx/t_yx,   cs/t_yy   ,cs*r_yy/t_yy],
-             [-sn*r_yx/t_yx,  -sn/t_yx   , cs*r_yy/t_yy,   cs/t_yy  ]
-             ])
-        for i, this_layer in enumerate(layers):
-            if i+1==len(layers):
-                # Last layer
-                angle_diff = this_layer.angle
-                rot_mat = rot( this_layer.M(c_matrix(0)), angle_diff )
-            else:
-                angle_diff = this_layer.angle - layers[i+1].angle
-                rot_mat = rot( this_layer.M(layers[i+1]), angle_diff )
-            self.matrix=self.matrix * this_layer.phase(freq) * rot_mat
+            [cos(theta), sin(theta), -sin(theta)*C, cos(theta)*C],
+            [-sin(theta), cos(theta), -cos(theta)*C, -sin(theta)*C],
+            [cos(theta), sin(theta), sin(theta)*C, -cos(theta)*C],
+            [-sin(theta), cos(theta), cos(theta)*C, sin(theta)*C]
+                ]) * np.matrix([
+            [m.item(0,0)+m.item(0,3)/C, m.item(0,1)-m.item(0,2)/C],
+            [m.item(1,0)+m.item(1,3)/C, m.item(1,1)-m.item(1,2)/C],
+            [m.item(2,0)+m.item(2,3)/C, m.item(2,1)-m.item(2,2)/C],
+            [m.item(3,0)+m.item(3,3)/C, m.item(3,1)-m.item(3,2)/C]
+            ])
 
 class Interface:
     """Wrapper around interface_matrix."""
@@ -172,7 +131,6 @@ class Interface:
         matrices = [x.get_matrix() for x in self.layers]
         self._built_freq = freq
         self.c_mat = _InterfaceMatrix(matrices, freq)
-        self.r_mat = invert(self.c_mat.matrix)
     def trans(self, freq):
         """Calculate transmission ratio for medium/media."""
         self.build(freq)
@@ -180,21 +138,6 @@ class Interface:
         return ( abs( 1/(c_mat.item(0,0)+c_mat.item(2,0)) )**2/2 +
                     abs( 1/(c_mat.item(2,2)+c_mat.item(0,2)) )**2/2 )
         #return abs(1/(c_mat.matrix.item(0,0)))**2/2 + abs(1/(c_mat.matrix.item(2,2)))**2/2
-    def cross(self, freq):
-        """
-        Returns the total transmitted power along each axis,
-        the cross x-y power, and cross y-x power. The i-j cross
-        power is the output power along the j axis with an input
-        polarization along the i axis.
-        """
-        self.build(freq)
-        r_mat = self.c_mat.matrix
-        return (
-                abs(1/(r_mat.item(0,0)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(2,2))),#T_xx
-                abs(1/(r_mat.item(2,2)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(0,0))),#T_yy
-                abs(r_mat.item(0,2)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))),#T_xy
-                abs(r_mat.item(2,0)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))) #T_yx
-                )
     def __mul__(self, vect):
         assert hasattr(self, "c_mat"), ("You must build the transmission matrix"
             " for some frequency before using the interface as an operator.")
@@ -204,11 +147,15 @@ class Interface:
             s_trans = self * v
             return s_trans.stokes
         elif isinstance(vect, PolarizationTwoVector):
-            r_mat = self.c_mat.matrix
-            t_xx = 1/(r_mat.item(0,0)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(2 ,2))
-            t_yy = 1/(r_mat.item(2,2)-r_mat.item(0,2)*r_mat.item(2,0)/r_mat.item(0,0))
-            t_xy = r_mat.item(0,2)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))
-            t_yx = r_mat.item(2,0)/(r_mat.item(0,0)*r_mat.item(2,2)-r_mat.item(2,0)*r_mat.item(0,2))
+            m = self.c_mat.matrix
+            t_xx = ((m.item(1,1)*m.item(2,0)-m.item(2,1)*m.item(1,0))/
+                    (m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0)))
+            t_yy = ((m.item(0,0)*m.item(2,1)-m.item(2,0)*m.item(0,1))/
+                    (m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0)))
+            t_xy = ((m.item(3,0)*m.item(1,1)-m.item(3,1)*m.item(1,0))/
+                    (m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0)))
+            t_yx = ((m.item(3,1)*m.item(0,0)-m.item(3,0)*m.item(0,1))/
+                    (m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0)))
             v_x = t_xx*vect.v_x - t_xy*vect.v_y
             v_y = t_yy*vect.v_y - t_yx*vect.v_x
             return PolarizationTwoVector(v_x, v_y)
