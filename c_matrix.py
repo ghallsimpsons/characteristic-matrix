@@ -104,20 +104,13 @@ class _InterfaceMatrix:
     the Interface class.
     """
     def __init__(self, layers, freq):
-        perm_list_x=[]
-        perm_list_y=[]
-        # What material the interface exits to (air)
-        perm_last=1
-        for x in layers:
-            perm_list_x.append(x.permitivity)
-            perm_list_y.append(x.permitivity2)
         theta = layers[0].angle
         m = 1
         C = 1/(c*mu_0) #Eq3.73
         for i, this_layer in enumerate(layers[:-1]):
             m = m*this_layer.M(freq, layers[i+1]) #Eq3.87
         m = m*layers[-1].M(freq)
-        self.matrix = np.matrix([ #Eq3.94
+        self.matrix = 0.5*np.matrix([ #Eq3.94
             [cos(theta), sin(theta), -sin(theta)/C, cos(theta)/C],
             [-sin(theta), cos(theta), -cos(theta)/C, -sin(theta)/C],
             [cos(theta), sin(theta), sin(theta)/C, -cos(theta)/C],
@@ -151,7 +144,7 @@ class Interface:
             t_xx = m.item(1,1)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))
             t_yy = -m.item(0,0)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))
             t_xy = -m.item(0,1)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))
-            t_yx = m.item(1,0)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))
+            t_yx = m.item(1,0)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))       
             v_x = t_xx*vect.v_x + t_xy*vect.v_y
             v_y = t_yy*vect.v_y + t_yx*vect.v_x
             return PolarizationTwoVector(v_x, v_y)
