@@ -9,7 +9,7 @@ from numpy import arctan2, sin, cos, arcsin, angle, sqrt, pi
 from numpy import isclose, allclose
 from unitutils import unitize_a
 
-def isclosemod(a, b, atol=1E-5, mod=2*pi):
+def _isclosemod(a, b, atol=1E-5, mod=2*pi):
     """
     Return whether two numbers (or arrays) are within atol of each other
     in the modulo space determined by mod.
@@ -27,9 +27,11 @@ class PolarizationVector:
         # TODO: Just make the internal repr a complex number, and make
         #       amp and phase computed properties
         if len(args) == 2:
+            # Args are amplitude, phase
             self.amp = args[0]
             self.phase = unitize_a(args[1])
         elif len(args) == 1:
+            # Arg is complex number
             self.amp = abs(args[0])
             self.phase = angle(args[0])
     def __add__(self, other):
@@ -72,8 +74,8 @@ class PolarizationVector:
         easy to confirm that vector transformations are behaving as they
         should.
         """
-        if not isclosemod(self.phase, other.phase):
-            if isclosemod(self.phase, other.phase+pi):
+        if not _isclosemod(self.phase, other.phase):
+            if _isclosemod(self.phase, other.phase+pi):
                 # If they're pi out of phase, flip one of the amplitudes
                 return isclose(self.amp, -other.amp, atol=1E-5)
             else:

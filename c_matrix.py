@@ -14,22 +14,6 @@ CENTRAL_FREQ = 1.24E11
 c = 3E8
 mu_0 = 1.2566371E-6
 
-def rot(matrix, theta):
-    """
-    Perform a tensor rotation of the operator matrix
-    by an angle theta.
-    """
-    R = np.matrix([[cos(theta), 0, sin(theta), 0],
-                      [0, cos(theta), 0, sin(theta)],
-                      [-sin(theta), 0, cos(theta),0],
-                      [0,-sin(theta), 0, cos(theta)]])
-    # Hardcode Rinv, since the form is simple, and matrix inversion is hard
-    Rinv = np.matrix([[cos(theta), 0, -sin(theta), 0],
-                      [0, cos(theta), 0, -sin(theta)],
-                      [sin(theta), 0, cos(theta),0],
-                      [0,sin(theta), 0, cos(theta)]])
-    return R*matrix*Rinv
-
 class Layer:
     """
     A single dialectric layer. These are compounded using the
@@ -52,7 +36,7 @@ class Layer:
         Return a copy of self, but rotated at a different angle.
         """
         return Layer(self.eps, self.thickness, self.eps2, angle)
-    def get_matrix(self):
+    def _get_matrix(self):
         return c_matrix(thickness=self.thickness, eps=self.eps, eps2=self.eps2, angle=self.angle)
 
 class c_matrix:
@@ -126,8 +110,15 @@ class Interface:
     """Wrapper around interface_matrix."""
     def __init__(self, *arg):
         self.layers = arg
+    def __call__(self, angle):
+        """
+        Returns a rotated representation of the entire interface by the
+        given angle.
+        """
+        new_layers = [layer(angle) for layer in self.layers]
+        return Interface(*new_layers)
     def build(self, freq):
-        matrices = [x.get_matrix() for x in self.layers]
+        matrices = [x._get_matrix() for x in self.layers]
         self._built_freq = freq
         self.c_mat = _InterfaceMatrix(matrices, freq)
     def __mul__(self, vect):
