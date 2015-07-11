@@ -165,6 +165,18 @@ class PolarizationTwoVector:
     @property
     def stokes(self):
         return StokesVector(self.v_x, self.v_y)
+    @property
+    def I(self):
+        return self.stokes.I
+    @property
+    def Q(self):
+        return self.stokes.Q
+    @property
+    def U(self):
+        return self.stokes.U
+    @property
+    def V(self):
+        return self.stokes.V
     def __eq__(self, other):
         if isinstance(other, PolarizationTwoVector):
             return self.v_x == other.v_x and self.v_y == other.v_y

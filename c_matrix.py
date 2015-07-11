@@ -6,7 +6,6 @@ grantlandhall@berkeley.edu
 
 import numpy as np
 from numpy import pi, sqrt, exp, sin, cos
-from numpy.linalg import inv as invert
 from unitutils import unitize_f, unitize_d, unitize_a
 from vector_types import StokesVector, PolarizationTwoVector
 
@@ -121,6 +120,7 @@ class Interface:
         matrices = [x._get_matrix() for x in self.layers]
         self._built_freq = freq
         self.c_mat = _InterfaceMatrix(matrices, freq)
+        return self
     def __mul__(self, vect):
         assert hasattr(self, "c_mat"), ("You must build the transmission matrix"
             " for some frequency before using the interface as an operator.")
