@@ -2,12 +2,17 @@
 This package provides methods for finding analytic solutions for electromagnetic
 waves in planar dialectric and birefringent media.
 
-Before using this packages, make sure to run the test suite to make sure the
-current build is functioning as expected. You can run the tests from the
+Before using this package, make sure to run the test suite to ensure the
+current build is functioning properly. You can run the tests from the
 command line with `python tests.py`. If you plan on including this package
 in your own project, you can include the tests module in your own tests. When
 imported in another module, the tests will silently succeed, but will still
 complain (loudly) if anything is awry.
+
+##Dependencies
+The core modules currently depend upon numpy and have only been tested in
+Python 2.7.
+The included examples also depend upon scipy and matplotlib.
 
 #Contents
 [Design](#design)<br />
@@ -17,25 +22,20 @@ complain (loudly) if anything is awry.
 
 <a name="design" />
 #Design
-This package is broken into two main modules. The `c_matrix` module contains
-the classes related to dielectric interfaces. The `vector_types` module provides
-representations of various vectors that are useful for polarization sensitive
-simulations.
+This package is broken into two main modules. The [c_matrix](#c_matrix) module
+contains the classes related to dielectric interfaces. The [vector_types](#vector_types)
+module provides representations of various vectors that are useful for
+polarization sensitive simulations.
 
 In general, an interface matrix is formed by stacking one or more dielectric
 (birefringent) layers together. This matrix then acts on a polarization vector
 (via multiplication) to produce an output polarization after passing through
 the interface.
 
-##Dependencies
-The core modules currently depend upon numpy and have only been tested in
-Python 2.7.
-The included examples also depend upon scipy and matplotlib.
-
 <a name="examples" />
 #Examples
 
-##AR COATING EXAMPLE
+##Anti-Reflection Coating
 ```python
 from c_matrix import Layer, Interface
 from examples import graph
@@ -47,7 +47,7 @@ iface=Interface(layer1,layer2,layer3,layer4,layer3,layer2,layer1)
 graph(iface)
 ```
 
-##3-Layer Achromatic Half Wave Plate Example
+##3-Layer Achromatic Half Wave Plate
 ```python
 from c_matrix import Layer, Interface
 from examples import graph, rot_sweep
@@ -60,6 +60,7 @@ rot_sweep(ahwp)
 
 <a name="classes" />
 #Classes
+<a name="c_matrix" />
 ##c_matrix
 ###Layer
 The Layer class represents a single dielectric/birefringent layer.
@@ -98,6 +99,7 @@ this returns the new polarization vector, but does not modify the original
 incoming vector.<br />
 `__call__(angle)`: See [Layer.\__call__](#layercall)
 
+<a name="vector_types" />
 ##vector_types
 The vector_types module provides a few conventient vector representations of
 (partially) polarized light. 
