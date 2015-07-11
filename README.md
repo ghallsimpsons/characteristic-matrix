@@ -10,9 +10,10 @@ imported in another module, the tests will silently succeed, but will still
 complain (loudly) if anything is awry.
 
 ##Dependencies
-The core modules currently depend upon numpy and have only been tested in
-Python 2.7.
-The included examples also depend upon scipy and matplotlib.
+The core modules currently depend upon [NumPy](http://numpy.org) and have
+only been tested in Python 2.7.
+The included examples also depend upon [SciPy](http://scipy.org) and 
+[matplotlib](http://matplotlib.org/).
 
 #Contents
 [Design](#design)<br />
@@ -68,10 +69,12 @@ The Layer class represents a single dielectric/birefringent layer.
 Although the Layer class can be instantiated with one or no arguments, this is
 strongly discouraged. Layers can be initialized with the following properties:<br />
 `eps`: The relative permittivity along the ordinary axis of the layer.<br />
-`thickness`: The thickness of the layer in [Distance Units](#distanceunits)<br />
-`eps2`: The relative permittivity along the extraordinary axis of the layer. If
-unspecified, the layer will has a single index.<br />
-`angle`: The angle, in [Angle Units](#angleunits), at which to rotate the
+`thickness (strongly encouraged)`: The thickness of the layer in [Distance Units](#distanceunits).
+While the thickness will defaut to a sane value (1/4 wavelength at 124GHz) if not specified,
+it is strongly encouraged that you specify the thickness to avoid unexpected behavior.<br />
+`eps2 (optional)`: The relative permittivity along the extraordinary axis of the layer. If
+unspecified, the layer will have only a single index.<br />
+`angle (optional)`: The angle, in [Angle Units](#angleunits), at which to rotate the
 ordinary axis of the layer relative to the x-axis.<br />
 ######Public Methods
 <a name="layercall" />
