@@ -1,5 +1,13 @@
 #Characteristic Matrix Solver for Dialectric Media
-Methods for finding analytic solutions for waves in dialectric media.
+This package provides methods for finding analytic solutions for electromagnetic
+waves in planar dialectric and birefringent media.
+
+Before using this packages, make sure to run the test suite to make sure the
+current build is functioning as expected. You can run the tests from the
+command line with `python tests.py`. If you plan on including this package
+in your own project, you can include the tests module in your own tests. When
+imported in another module, the tests will silently succeed, but will still
+complain (loudly) if anything is awry.
 
 #Contents
 [Design](#design)<br />
@@ -18,6 +26,11 @@ In general, an interface matrix is formed by stacking one or more dielectric
 (birefringent) layers together. This matrix then acts on a polarization vector
 (via multiplication) to produce an output polarization after passing through
 the interface.
+
+##Dependencies
+The core modules currently depend upon numpy and have only been tested in
+Python 2.7.
+The included examples also depend upon scipy and matplotlib.
 
 <a name="examples" />
 #Examples
@@ -57,8 +70,8 @@ strongly discouraged. Layers can be initialized with the following properties:<b
 `thickness`: The thickness of the layer in [Distance Units](#distanceunits)<br />
 `eps2`: The relative permittivity along the extraordinary axis of the layer. If
 unspecified, the layer will has a single index.<br />
-`angle`: The angle, in [Angle Units](#angleunits), at which to rotate the ordinary axis of the layer
-relative to the x-axis.<br />
+`angle`: The angle, in [Angle Units](#angleunits), at which to rotate the
+ordinary axis of the layer relative to the x-axis.<br />
 ######Public Methods
 <a name="layercall" />
 `__call__(angle)`: Because it is undesirable to create multiple identical layers
