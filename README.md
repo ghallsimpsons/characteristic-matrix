@@ -88,6 +88,7 @@ incoming vector.<br />
 ##vector_types
 The vector_types module provides a few conventient vector representations of
 (partially) polarized light. 
+<a name="polarizationvector" />
 ###PolarizationVector
 Essentially represents a sine wave with a phase offset. PolarizationVectors
 form a complete algebra (addition and scalar multiplication).
@@ -97,6 +98,58 @@ Either:<br />
 `phase`: Phase angle in [Angle Units](#angleunits)<br />
 OR:<br />
 `phasor`: Complex number represention the amplitude and phase of the vector.
+######Properties
+`power`: The square of the electric field.<br />
+`amp`: The amplitude of the electric field.<br />
+`phase`: The absolute phase of the electric field.<br />
+<a name="polarizationtwovector" />
+###PolarizationTwoVector
+Represents an arbitrary normal-incidence plane wave. PolarizationTwoVectors can
+be added together to generate composite waves.
+######Arguments
+`vector_x`: A [PolarizationVector](#polarizationvector) representing the x
+component of field.<br />
+`vector_y`: A [PolarizationVector](#polarizationvector) representing the y
+component of field.<br />
+######Properties
+`I`: The intensity of the field.<br />
+`Q`: The Q polarized intensity of the field.<br />
+`U`: The U polarized intensity of the field.<br />
+`V`: The circularly polarized intensity of the field.<br />
+`stokes`: The [StokesVector](#stokesvector) representation of the field.<br />
+######Public Methods
+`rot(angle)`: Returns the vector rotated by the given angle, specified in
+[Angle Units](#angleunits)<br />
+<a name="stokesvector" />
+###StokesVector
+The Stokes representation of a normal-incidence plane wave.
+######Arguments
+Either:<br />
+`I`: The intensity of the field.<br />
+`Q`: The Q polarized intensity of the field.<br />
+`U`: The U polarized intensity of the field.<br />
+`V`: The circularly polarized intensity of the field.<br />
+`Phase (optional)`: The absolute phase of the [StokesVector](#stokesvector), 
+in [Angle Units](#angleunits).<br />
+The phase offset is relative to the x component if the x component is non-zero,
+or the y component otherwise. It is zero by default.<br />
+OR:<br />
+`vector_x`: A [PolarizationVector](#polarizationvector) representing the x
+component of field.<br />
+`vector_y`: A [PolarizationVector](#polarizationvector) representing the y
+component of field.<br />
+######Properties
+`I`: The intensity of the field.<br />
+`Q`: The Q polarized intensity of the field.<br />
+`U`: The U polarized intensity of the field.<br />
+`V`: The circularly polarized intensity of the field.<br />
+`cartesian`: The [PolarizationTwoVector](#polarizationtwovector) corresponding
+to the [StokesVector](#stokesvector)<br />
+`phase`: The phase offset in radians relative to the x component if the
+x component is non-zero, or the y component otherwise.<br />
+######Public Methods
+`rot(angle)`: Returns a [StokesVector](#stokesvector) rotated by the angle
+given in [Angle Units](#angleunits)<br />
 
 <a name="unittypes" />
 #Unit Types

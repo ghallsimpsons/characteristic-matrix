@@ -5,7 +5,7 @@ Created on Wed Jun 03 14:32:21 2015
 @author: Grantland
 """
 
-from numpy import arctan2, sin, cos, arcsin, angle, sqrt, pi
+from numpy import arctan2, sin, cos, arcsin, angle, sqrt, pi, exp
 from numpy import isclose, allclose
 from unitutils import unitize_a
 
@@ -24,16 +24,12 @@ class PolarizationVector:
         electric field at a specific point in space-time.
         Takes amplitude and wave phase in radians, or a complex number.
         """
-        # TODO: Just make the internal repr a complex number, and make
-        #       amp and phase computed properties
         if len(args) == 2:
             # Args are amplitude, phase
-            self.amp = args[0]
-            self.phase = unitize_a(args[1])
+            self.pol = args[0]*(exp(1j*args[1]))
         elif len(args) == 1:
             # Arg is complex number
-            self.amp = abs(args[0])
-            self.phase = angle(args[0])
+            self.pol = args[0]
     def __add__(self, other):
         a1 = self.amp
         a2 = other.amp
@@ -68,6 +64,12 @@ class PolarizationVector:
         Power is the square of the amplitude of the electric field.
         """
         return self.amp**2
+    @property
+    def amp(self):
+        return abs(self.pol)
+    @property
+    def phase(self):
+        return angle(self.pol)
     def __eq__(self, other):
         """
         Check if vector is essentially equal to another. This makes it
@@ -99,13 +101,33 @@ class StokesVector:
             self.Q = args[1]
             self.U = args[2]
             self.V = args[3]
+            self.phase = 0
+        elif len(args) == 5:
+            # stokes repr with phase
+            self.I = args[0]
+            self.Q = args[1]
+            self.U = args[2]
+            self.V = args[3]
+            self.phase = args[4]
         elif len(args) == 2:
             x = args[0]
             y = args[1]
             self.I = x.power + y.power
             self.Q = x.power - y.power
-            self.U = 2*x.amp*y.amp*(cos(x.phase)*cos(y.phase)-sin(x.phase)*sin(y.phase))
-            self.V = -2*x.amp*y.amp*(cos(x.phase)*sin(y.phase)+sin(x.phase)*cos(y.phase))
+            self.U = 2*x.amp*y.amp*(cos(x.phase-y.phase))
+            self.V = -2*x.amp*y.amp*(sin(x.phase-y.phase))
+            if isclose(x.amp, 0, atol=1E-5):
+                if isclose(y.amp, 0, atol=1E-5):
+                    self.phase = 0
+                else:
+                    """
+                    If x is zero, use y phase. Since stokes vectors can't be
+                    modified except by casting to cartesian coordinates, the
+                    result of this check will be preserved.
+                    """
+                    self.phase = y.phase
+            else:
+                self.phase = x.phase
         else:
             raise TypeError("Arguments must either be I, Q, U, V or two " \
                             "perpendicular PolarizationVectors.")
@@ -115,26 +137,52 @@ class StokesVector:
         Returns the PolarizationTwoVector corresponding to the Stokes vector.
         """
         tilt = arctan2(self.U, self.Q)/2
-        elipticity = arcsin(self.V/self.I)/2
-        E_x = sqrt(self.I) * (cos(tilt)*cos(elipticity)-1j*sin(tilt)*sin(elipticity))
-        E_y = sqrt(self.I) * (sin(tilt)*cos(elipticity)+1j*cos(tilt)*sin(elipticity))
+        if self.I == 0:
+            elipticity = 0
+        else:
+            elipticity = arcsin(self.V/self.I)/2
+        E_x = sqrt(self.I)*(cos(tilt)*cos(elipticity)-1j*sin(tilt)*sin(elipticity))
+        E_y = sqrt(self.I)*(sin(tilt)*cos(elipticity)+1j*cos(tilt)*sin(elipticity))
+        # Since pure Stokes vectors don't preserve phase, reconstruct from saved phase
+        if isclose(E_x, 0, atol=1E-5):
+            offset = self.phase-angle(E_y)
+        else:
+            offset = self.phase-angle(E_x)
+        E_x = E_x*exp(1j*offset)
+        E_y = E_y*exp(1j*offset)
         v_x = PolarizationVector(E_x)
         v_y = PolarizationVector(E_y)
         return PolarizationTwoVector(v_x, v_y)
+    def rot(self, angle):
+        """Returns rotated copy of self."""
+        return self.cartesian.rot(angle).stokes
+    def _rot(self, angle):
+        """Rotates self by angle."""
+        self = self.rot(angle)
+    def __add__(self, other):
+        if not isinstance(other, PolarizationTwoVector):
+            other = other.cartesian
+        return (self.cartesian+other).stokes
+    def __sub__(self, other):
+        if not isinstance(other, PolarizationTwoVector):
+            other = other.cartesian
+        return (self.cartesian-other).stokes
     def __eq__(self, other):
         """
         Returns whether or not two stokes vectors are essentially equal.
         """
         if isinstance(other, StokesVector):
             return allclose([self.I, self.Q, self.U, self.V], 
-                        [other.I, other.Q, other.U, other.V], atol=1E-5)
+                [other.I, other.Q, other.U, other.V], atol=1E-5) and (
+                _isclosemod(self.phase, other.phase) or isclose(self.I, 0, atol=1E-5))
         elif isinstance(other, PolarizationTwoVector):
             return self == other.stokes
     def __ne__(self, other):
         #This isn't the default behavior because <insert bogus explanation here>
         return not self==other
     def __repr__(self):
-        return "I: {}, Q: {}, U: {}, V: {}".format(self.I, self.Q, self.U, self.V) 
+        return "I: {}, Q: {}, U: {}, V: {}, Phase: {}".format(
+            self.I, self.Q, self.U, self.V, self.phase) 
     
 class PolarizationTwoVector:
     """
@@ -160,8 +208,15 @@ class PolarizationTwoVector:
         """Rotate self by angle."""
         self = self.rot(angle)
     def __add__(self, other):
+        if not isinstance(other, PolarizationTwoVector):
+            other = other.cartesian
         return PolarizationTwoVector( self.v_x + other.v_x, 
                                       self.v_y + other.v_y )
+    def __sub__(self, other):
+        if not isinstance(other, PolarizationTwoVector):
+            other = other.cartesian
+        return PolarizationTwoVector( self.v_x - other.v_x,
+                                      self.v_y - other.v_y)
     @property
     def stokes(self):
         return StokesVector(self.v_x, self.v_y)
