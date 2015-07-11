@@ -32,9 +32,10 @@ class Layer:
         self.eps = eps  
     def __call__(self, angle):
         """
-        Return a copy of self, but rotated at a different angle.
+        Return a copy of self, but rotated by the given angle.
         """
-        return Layer(self.eps, self.thickness, self.eps2, angle)
+        theta = unitize_a(angle)
+        return Layer(self.eps, self.thickness, self.eps2, self.angle+theta)
     def _get_matrix(self):
         return c_matrix(thickness=self.thickness, eps=self.eps, eps2=self.eps2, angle=self.angle)
 

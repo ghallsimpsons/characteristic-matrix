@@ -27,6 +27,7 @@ def rot_sweep(interface, freq, step='1 deg', pol_in=default_input):
     """
     Q=np.array([])
     U=np.array([])
+    I=np.array([])
 
     f = unitize_f (freq)
     radstep = unitize_a(step)
@@ -37,9 +38,11 @@ def rot_sweep(interface, freq, step='1 deg', pol_in=default_input):
         pol_out = rot_int*pol_in
         Q = np.append(Q, pol_out.Q)
         U = np.append(U, pol_out.U)
+        I = np.append(I, pol_out.I)
 
     Q = Q/pol_in.I
     U = U/pol_in.I
+    I = I/pol_in.I
 
     sin_to_fit = lambda x, phase: np.sin(phase + 4*x)
 
@@ -48,9 +51,11 @@ def rot_sweep(interface, freq, step='1 deg', pol_in=default_input):
     
     diff = np.sum((Q-sin_fit)**2)*radstep/(2*pi)
     print "Power difference: {}".format(diff)
+    print "Minimum transmission: {}".format(min(I))
     
     plt.plot(angle_range, Q, label="Q")
     plt.plot(angle_range, U, label="U")
+    plt.plot(angle_range, I, label="I")
     plt.plot(angle_range, sin_fit, label="Fit")
     plt.xlabel("Angle (radians)")
     plt.ylabel("Normalized Transmission")
@@ -90,6 +95,7 @@ def graph(interface, start="1ghz", stop="300ghz", step="0.1ghz"):
     plt.show()
 
 def get_data(interface, start, stop, step):
+    """Get polarization transmittion data over a range of frequencies."""
     start = unitize_f(start)
     stop = unitize_f(stop)
     step = unitize_f(step)

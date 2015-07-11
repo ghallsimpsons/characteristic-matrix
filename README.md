@@ -16,13 +16,16 @@ simulations.
 
 In general, an interface matrix is formed by stacking one or more dielectric
 (birefringent) layers together. This matrix then acts on a polarization vector
-to produce an output polarization after passing through the interface.
+(via multiplication) to produce an output polarization after passing through
+the interface.
 
 <a name="examples" />
 #Examples
 
 ##AR COATING EXAMPLE
 ```python
+from c_matrix import Layer, Interface
+from examples import graph
 layer1=Layer(2, .00035)
 layer2=Layer(4, .00025)
 layer3=Layer(7, .00018)
@@ -33,11 +36,13 @@ graph(iface)
 
 ##3-Layer Achromatic Half Wave Plate Example
 ```python
-AR1=Layer(2, "350um")
-AR2=Layer(5, "250um")
-HWP=Layer(eps=9.36, eps2=11.56, thickness="3.6mm")
-iface=Interface(AR1,AR2,HWP,HWP("58deg"),HWP,AR2,AR1)
-graph(iface)
+from c_matrix import Layer, Interface
+from examples import graph, rot_sweep
+ar=Layer(3.23, "0.34mm")
+hwp=Layer(eps=9.36, eps2=11.56, thickness="3.6mm")
+ahwp=Interface(ar,hwp,hwp("58deg"),hwp,ar)
+graph(ahwp)
+rot_sweep(ahwp)
 ```
 
 <a name="classes" />
