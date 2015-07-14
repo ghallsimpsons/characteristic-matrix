@@ -40,6 +40,24 @@ def unitize_f(freq):
     elif unit == "ghz":
         ret_freq*=1E9
     return ret_freq
+
+def frange(start, stop):
+    """
+    Takes a numeric frequenct in Hz and returns the median divisor and
+    appropriate unit.
+    """
+    divisor=1
+    frq_range="Hz"
+    if (stop+start)/2>1000000000:
+        divisor=1000000000
+        frq_range="GHz"
+    elif (stop+start)/2>1000000:
+        divisor=1000000
+        frq_range="MHz"
+    elif (stop+start)/2>1000:
+        divisor=1000
+        frq_range="kHz"
+    return (divisor, frq_range)
     
 def unitize_d(dist):
     """

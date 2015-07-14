@@ -153,6 +153,9 @@ class StokesVector:
         v_x = PolarizationVector(E_x)
         v_y = PolarizationVector(E_y)
         return PolarizationTwoVector(v_x, v_y)
+    @property
+    def vect(self):
+        return [self.I, self.Q, self.U, self.V]
     def rot(self, angle):
         """Returns rotated copy of self."""
         return self.cartesian.rot(angle).stokes
