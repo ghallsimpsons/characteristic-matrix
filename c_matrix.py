@@ -134,9 +134,9 @@ class Interface:
             m = self.c_mat.matrix
             #Eq3.103-106
             t_xx = m.item(1,1)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))
-            t_yy = -m.item(0,0)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))
+            t_yy = m.item(0,0)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))
             t_xy = -m.item(0,1)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))
-            t_yx = m.item(1,0)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))       
+            t_yx = -m.item(1,0)/(m.item(1,1)*m.item(0,0)-m.item(0,1)*m.item(1,0))
             v_x = t_xx*vect.v_x + t_xy*vect.v_y
             v_y = t_yy*vect.v_y + t_yx*vect.v_x
             return PolarizationTwoVector(v_x, v_y)
