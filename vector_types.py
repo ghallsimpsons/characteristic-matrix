@@ -156,6 +156,9 @@ class StokesVector:
     @property
     def vect(self):
         return [self.I, self.Q, self.U, self.V]
+    @property
+    def pol_angle(self):
+        return (0.5*arctan2(self.U,self.Q))%(2*pi)
     def rot(self, angle):
         """Returns rotated copy of self."""
         return self.cartesian.rot(angle).stokes
