@@ -134,6 +134,40 @@ def rot_sweep_data(interface, freq, step, a_range, pol_in):
     
     return (I, Q, U, V)
     
+def phase_vs_freq(interface, fstart, fstop, fstep="1GHz"):
+    """
+    Plot polarization rotation phase vs frequency for a given interface.
+    """
+    sin_to_fit = lambda x, a, phase: a*np.sin(phase + 4*x)
+    pol_in = StokesVector(1,1,0,0)
+    fstart = unitize_f(fstart)
+    fstop = unitize_f(fstop)
+    fstep = unitize_f(fstep)
+    f_range = np.arange(fstart, fstop, fstep)
+    divisor, frq_range = frange(fstart, fstop)
+
+    radstep = unitize_a("1deg")
+    angle_range = np.arange(0, pi/2, radstep)
+
+    data = np.array(mpexec(rot_sweep_data, "freq", f_range,
+        interface=interface, step="1deg", a_range=pi/2, pol_in=pol_in,
+        globals=globals()))
+    pol = []
+    phase = []
+    print "starting fit"
+    for i, f in enumerate(f_range):
+        # Get Q vs angle, indexed by frequency
+        pol.append(data[i,1])
+        phase_fit = curve_fit(sin_to_fit, angle_range, pol[i])
+        phase.append(phase_fit[0][1])
+    min_phase = min(phase)
+    phase -= min_phase
+    dphase = map(deg, phase)
+    plt.plot(f_range/divisor, dphase)
+    plt.xlabel("Frequency ({})".format(frq_range))
+    plt.ylabel("Phase angle (deg)")
+    plt.show()
+
 def rot_sweep(interface, freq, pol_in, step='1 deg'):
     """
     Plots the output Q and U vs rotation angle given an input polarization
