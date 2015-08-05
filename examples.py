@@ -6,14 +6,19 @@ grantlandhall@berkeley.edu
 Last Modified: Nov 2, 2013
 """
 import time
+# Import unqualified module for pp
+import numpy
 import numpy as np
 from numpy import pi
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
-from unitutils import unitize_f, unitize_a, unitize_d, frange
+
+from unitutils import unitize_f, unitize_a, unitize_d, frange, deg
 from vector_types import (PolarizationVector, PolarizationTwoVector,
                           StokesVector)
 from c_matrix import Layer, Interface
+
+from mp import mpexec
 
 hwp_axis_1 = 11.56
 hwp_axis_2 = 9.36
@@ -100,7 +105,8 @@ def mueller_wp(phase):
                       [0,0,np.cos(phase),-np.sin(phase)],
                       [0,0,np.sin(phase),np.cos(phase)]])
 
-def rot_sweep_data(interface, freq, step='1 deg', a_range=2*pi, pol_in=default_input):
+# We can't use default args because pp was poorly designed
+def rot_sweep_data(interface, freq, step, a_range, pol_in):
     """
     Returns the I, Q, U and V over a rotation of 2pi.
     """
@@ -125,15 +131,10 @@ def rot_sweep_data(interface, freq, step='1 deg', a_range=2*pi, pol_in=default_i
         Q = np.append(Q, pol_out.Q)
         U = np.append(U, pol_out.U)
         V = np.append(V, pol_out.V)  
-
-    I = I/pol_in.I
-    Q = Q/pol_in.I
-    U = U/pol_in.I
-    V = V/pol_in.I
     
     return (I, Q, U, V)
     
-def rot_sweep(interface, freq, step='1 deg', pol_in=default_input):
+def rot_sweep(interface, freq, pol_in, step='1 deg'):
     """
     Plots the output Q and U vs rotation angle given an input polarization
     vector. The output is normalized by the input intensity. The interface
@@ -187,6 +188,29 @@ def mod_vs_freq(interface, fstart, fstop, fstep, astep="1deg"):
     plt.xlabel("Frequency ("+frq_range+")")
     plt.ylabel("Modulation Efficiency")
     plt.ylim(ymin=0,ymax=1.1)
+    plt.legend()
+    plt.show()   
+
+def cross_pol(interface, fvals, astep="1deg"):
+    """
+    Calculates and plots the cross polarization vs angle for a number of freqs.
+    """
+    f_vals = map(unitize_f,fvals)
+    divisor, frq_range = frange(min(f_vals), max(f_vals))
+
+    radstep = unitize_a(astep)
+    angle_range = np.arange(0, pi/2, radstep)
+    deg_range = map(deg, angle_range)
+
+    data = mpexec(rot_sweep_data, "freq", f_vals, interface=interface,
+            a_range=pi/2, step=astep, pol_in=StokesVector(1,1,0,0),
+            globals=globals())
+    for i, f in enumerate(f_vals):
+        I,Q,U,V = data[i]
+        plt.plot(deg_range, U, label="{}{}".format(int(f/divisor), frq_range))
+    plt.xlabel("Angle (degrees)")
+    plt.ylabel("Cross Polarization")
+    plt.ylim(ymin=-1,ymax=1)
     plt.legend()
     plt.show()   
 
