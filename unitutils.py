@@ -21,6 +21,11 @@ def unitize_a(angle):
     if re.match(r".*deg.*", s_angle, re.I):
         return np.deg2rad(ret_angle)
     return ret_angle
+
+def deg(angle):
+    """Returns the degree equivalent of the input angle."""
+    a = unitize_a(angle)
+    return 360*a/(2*np.pi)
     
 def unitize_f(freq):
     """

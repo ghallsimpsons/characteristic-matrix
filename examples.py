@@ -6,8 +6,6 @@ grantlandhall@berkeley.edu
 Last Modified: Nov 2, 2013
 """
 import time
-from multiprocessing import Process, Pool, cpu_count
-
 import numpy as np
 from numpy import pi
 from scipy.optimize import curve_fit
@@ -15,6 +13,16 @@ import matplotlib.pyplot as plt
 from unitutils import unitize_f, unitize_a, unitize_d, frange
 from vector_types import (PolarizationVector, PolarizationTwoVector,
                           StokesVector)
+from c_matrix import Layer, Interface
+
+hwp_axis_1 = 11.56
+hwp_axis_2 = 9.36
+hwp = Layer(eps=hwp_axis_1, eps2=hwp_axis_2, thickness="3.6mm")
+coating_2a = 2.32
+coating_2b = 6.79
+ar2a = Layer(coating_2a, "400um")
+ar2b = Layer(coating_2b, "230um")
+dual_band_ahwp = Interface(ar2a, ar2b, hwp, hwp("58deg"), hwp, ar2b, ar2a)
 
 central_freq="150GHz"
 c=300000000.0
@@ -24,24 +32,63 @@ default_input = StokesVector(1, 1, 0, 0) # I=Q=1, U=V=0
 
 rms = lambda arr: np.sqrt(np.mean(np.square(arr)))
 
-def contrived_ahwp(f_range,n1,n2,d):
+def contrived_ahwp_mod(f_range,n1,n2,d):
     a_range = np.arange(0, pi/2, unitize_a("1deg"))
     d=unitize_d(d)
     center_angle = unitize_a("58deg")
     mods = []
     for f in f_range:
         mueller = mueller_wp((n2-n1)*2*pi*f*d/c)
-        p = []
+        I = np.array([])
+        Q = np.array([])
         for a in a_range:
             s = StokesVector(1,1,0,0)
             v = mueller.dot(np.array([s.rot(a).vect]).reshape([4,1])).reshape([4,])
             s = StokesVector(*v)
-            v = mueller.dot(np.array([s.rot(a+center_angle).vect]).reshape([4,1])).reshape([4,])
+            v = mueller.dot(np.array([s.rot(center_angle).vect]).reshape([4,1])).reshape([4,])
             s = StokesVector(*v)
-            v = mueller.dot(np.array([s.rot(a-center_angle).vect]).reshape([4,1])).reshape([4,])
-            p.append(np.sqrt(v[1]**2+v[2]**2))
-        mods.append(rms(p))
+            v = mueller.dot(np.array([s.rot(-center_angle).vect]).reshape([4,1])).reshape([4,])
+            s = StokesVector(*v).rot(-a)
+            Q = np.append(Q,s.Q)
+        mods.append((max(1+Q)-min(1+Q))/2)
     return mods
+
+def contrived_ahwp_cross(f_range, n1, n2, d, angle):
+    d=unitize_d(d)
+    center_angle = unitize_a("58deg")
+    out_angles = []
+    for f in f_range:
+        mueller = mueller_wp((n2-n1)*2*pi*f*d/c)
+        p = []
+        s = StokesVector(1,1,0,0)
+        v = mueller.dot(np.array([s.rot(angle).vect]).reshape([4,1])).reshape([4,])
+        s = StokesVector(*v)
+        v = mueller.dot(np.array([s.rot(center_angle).vect]).reshape([4,1])).reshape([4,])
+        s = StokesVector(*v)
+        v = mueller.dot(np.array([s.rot(-center_angle).vect]).reshape([4,1])).reshape([4,])
+        s = StokesVector(*v)
+        a = s.rot(-angle).pol_angle
+        a = (a+pi)%(pi)
+        out_angles.append(a)
+    return out_angles
+
+def contrived_cross_sweep(fstart, fstop, fstep, n1, n2, d):
+    d = unitize_d(d)
+    fstart = unitize_f(fstart)
+    fstop = unitize_f(fstop)
+    fstep = unitize_f(fstep)
+    divisor, frq_range = frange(fstart,fstop)
+    arange = np.arange(0, pi/2, unitize_a("15deg"))
+    f_range = np.arange(fstart, fstop, fstep)
+    for angle in arange:
+        angles = contrived_ahwp_cross(f_range, n1, n2, d, angle)
+        label = "AHWP Angle: {0:.2f}".format(angle)
+        plt.plot(f_range, angles, label=label)
+    plt.xlabel("Frequency ("+frq_range+")")
+    plt.ylabel("Polarization Angle")
+    plt.ylim(ymin=0, ymax=pi)
+    plt.legend()
+    plt.show()
         
 def mueller_wp(phase):
     """
@@ -86,35 +133,6 @@ def rot_sweep_data(interface, freq, step='1 deg', a_range=2*pi, pol_in=default_i
     
     return (I, Q, U, V)
     
-def mp_rot_sweep_data(interface, freq, step='1 deg', a_range=2*pi, pol_in=default_input):
-    """
-    Returns the I, Q, U and V over a rotation of 2pi.
-    """
-    Q=np.array([])
-    U=np.array([])
-
-    a_range=unitize_a(a_range)
-    f = unitize_f(freq)
-    interface.build(f)
-    
-    radstep = unitize_a(step)
-    angle_range = np.arange(0, a_range, radstep)
-    
-    for angle in angle_range:
-        # Rotating the input polarization rather than rebuilding the interface
-        # at each rotation gives a factor of 2 improvement in performance.
-        rot_pol = pol_in.rot(angle)
-        pol_out = (interface*rot_pol).rot(-angle)
-        Q = np.append(Q, pol_out.Q)
-        U = np.append(U, pol_out.U)
-
-    Q = Q/pol_in.I
-    U = U/pol_in.I
-    
-    eff = rms(np.sqrt(Q**2+U**2)) 
-    
-    return eff
-    
 def rot_sweep(interface, freq, step='1 deg', pol_in=default_input):
     """
     Plots the output Q and U vs rotation angle given an input polarization
@@ -156,48 +174,21 @@ def mod_vs_freq(interface, fstart, fstop, fstep, astep="1deg"):
     f_vals = []
     efficiency = []
     divisor, frq_range = frange(fstart, fstop)
-    #contrived_data = contrived_ahwp(
-    #    np.arange(fstart,fstop,fstep),np.sqrt(9.26),np.sqrt(11.56),"3.6mm")
+    contrived_data = contrived_ahwp_mod(
+        np.arange(fstart,fstop,fstep),np.sqrt(9.26),np.sqrt(11.56),"3.6mm")
     for f in xrange(int((fstop-fstart)/fstep)):
         f_vals.append((f*fstep+fstart)/divisor)
-        I,Q,U,V=rot_sweep_data(interface, fstart+f*fstep, step=astep, a_range=pi/2)
-        efficiency.append(rms(np.sqrt(Q**2+U**2)))
-    plt.plot(f_vals, efficiency, label="Modulation Efficiency")
-    #plt.plot(f_vals, contrived_data, label="Contrived AHWP")
-    plt.xlabel("Frequency ("+frq_range+")")
-    plt.ylabel("Modulation Efficiency")
-    plt.ylim(ymin=0,ymax=1)
-    plt.legend()
-    plt.show()   
+        #I,Q,U,V=rot_sweep_data(interface, fstart+f*fstep, step=astep, a_range=pi/2)
+        #efficiency.append(rms(np.sqrt(Q**2+U**2)))
     end_time = time.time()
     print "elapsed: {}s".format((end_time-start_time))
-
-def mp_mod_vs_freq(interface, fstart, fstop, fstep, astep="1deg"):
-    """
-    Calculates and plots the modulation efficiency vs frequency.
-    """
-    nprocs = cpu_count()-1
-    pool = Pool(nprocs)
-    print "Pooling {} procs.".format(nprocs)
-        
-    start_time = time.time()
-    fstart = unitize_f(fstart)
-    fstop = unitize_f(fstop)
-    fstep = unitize_f(fstep)
-    divisor, frq_range = frange(fstart, fstop)
-    
-    efficiency = [pool.apply(mp_rot_sweep_data,(interface,f*fstep+fstart,astep,pi/2))
-                            for f in range(int((fstop-fstart)/fstep))]
-    f_vals = [(f*fstep+fstart)/divisor for f in range(int((fstop-fstart)/fstep))]
-    
-    plt.plot(f_vals, efficiency, label="Modulation Efficiency")
+    #plt.plot(f_vals, efficiency, label="Modulation Efficiency")
+    plt.plot(f_vals, contrived_data, label="Contrived AHWP")
     plt.xlabel("Frequency ("+frq_range+")")
     plt.ylabel("Modulation Efficiency")
-    plt.ylim(ymin=0,ymax=1)
+    plt.ylim(ymin=0,ymax=1.1)
     plt.legend()
     plt.show()   
-    end_time = time.time()
-    print "elapsed: {}s".format((end_time-start_time))
 
 def graph(interface, start="1ghz", stop="300ghz", step="0.1ghz"):
     """Show frequency spectrum of interface."""
