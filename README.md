@@ -12,14 +12,15 @@ complain (loudly) if anything is awry.
 ##Dependencies
 The core modules currently depend upon [NumPy](http://numpy.org) and have
 only been tested in Python 2.7.
-The included examples also depend upon [SciPy](http://scipy.org) and 
-[matplotlib](http://matplotlib.org/).
+The included examples also depend upon [SciPy](http://scipy.org), 
+[matplotlib](http://matplotlib.org/), and [ParallelPython](http://www.parallelpython.com).
 
 #Contents
 [Design](#design)<br />
 [Examples](#examples)<br />
 [Classes](#classes)<br />
 [Unit Types](#unittypes)<br />
+[Parallel Calculations](#parallel)<br />
 
 <a name="design" />
 #Design
@@ -185,6 +186,23 @@ notation, e.g. 120E9) in Hz, or in higher frequencies by passing a string, e.g.
 Any distance can either be specified as an int/float (optionally in scientific
 notation, e.g. 10E-6) in meters, or in smaller unity by passing a string, e.g.
 "30um".
+<a name="parallel" />
+##Parallel Calculations
+This package is modular enough that it should be easy to integrate it with your
+favorite multiprocessing or parallel computing library. However, an easy to use
+(hopefully) general purpose function is included with this package in the `mp`
+module. There are some examples of its usage in the examples module.
+Currently, the `mp` module will only do local multiprocessing, though it can
+be trivially extended to clusters. The function that provides this capability is
+`mpexec`. It allows you to execute a function across a finite range for a single
+parameter. Suppose you have a function `f` which takes 3 arguments, `a`, `b` and
+`c`. To sweep across values of `b` in range(3) for fixed `a` and `c`, you would
+call the your function with `mpexec(f, "b", range(3), a="1", c="4")`. The return
+value is an array of your function return values, indexed by your parameter range.
+`mpexec` also takes optional keyword arguments `modules` and `globals`. For a
+description of these arguments, see the arguments of
+[Server.submit](http://www.parallelpython.com/content/view/15/30/).
+
 
 #Acknowledgements
 These modules were written with the help of Aritoki Suzuki and Charles Hill at UC Berkeley.
